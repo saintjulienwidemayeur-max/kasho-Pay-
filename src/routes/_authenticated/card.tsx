@@ -687,9 +687,7 @@ function TerminateCardDialog({ open, onOpenChange, card }: { open: boolean; onOp
       status.success("Card terminated", r.refunded > 0 ? `${usd(r.refunded)} returned to your wallet.` : undefined);
       void refresh();
     } catch (e) {
-      const msg = errorMessage(e);
-      setError(msg);
-      status.error(msg);
+      status.error(errorMessage(e));
       void refresh();
     } finally {
       setBusy(false);
