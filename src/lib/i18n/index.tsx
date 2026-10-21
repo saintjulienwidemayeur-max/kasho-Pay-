@@ -36,8 +36,19 @@ const DATE_RE = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{1,2})(.*
 const missing = new Set<string>();
 const debug = () => typeof location !== "undefined" && /[?&]i18n-debug=1/.test(location.search);
 
-/** French text for an English UI string, or null when there is nothing to change. */
+/** "$1,310.50" -> "1 310,50 $" (French money format), applied to every translated or untranslated text. */
+export function frenchMoney(s: string): string {
+  return s.replace(/\$(\d[\d,]*)(?:\.(\d+))?/g, (_, whole: string, frac?: string) =>
+    `${whole.replace(/,/g, "\u202f")}${frac ? `,${frac}` : ""}\u00a0$`);
+}
+
+/** French text for an English UI string (amounts in French format), or null when there is nothing to change. */
 export function toFrench(text: string): string | null {
+  const out = frenchMoney(translateText(text) ?? text);
+  return out !== text ? out : null;
+}
+
+function translateText(text: string): string | null {
   const lead = /^\s*/.exec(text)![0];
   const trail = /\s*$/.exec(text)![0];
   const core = norm(text.trim());
