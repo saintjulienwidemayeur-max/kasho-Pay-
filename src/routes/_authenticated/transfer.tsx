@@ -232,7 +232,7 @@ function TransferPage() {
           <section className="mt-6 rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-xl border border-primary bg-primary/10 p-4">
               <Smartphone className="h-5 w-5 text-primary" />
-              <span><span className="block text-sm font-medium">Kasho transfer</span><span className="block text-xs text-muted-foreground">{parsed > 0 && fee > 0 ? `Instant · Fee ${usd(fee)} · total ${usd(parsed + fee)}` : fee > 0 ? "Instant" : "Instant · Free"}</span></span>
+              <span><span className="block text-sm font-medium">Kasho transfer</span><span className="block text-xs text-muted-foreground">{parsed > 0 && fee > 0 ? `Instant · Fee ${usd(fee)} · total ${usd(parsed + fee)}` : parsed > 0 && feeOrNull === 0 ? "Instant · Free" : "Instant"}</span></span>
             </div>
             <Input placeholder="Add a note (optional)" maxLength={140} className="mt-4 h-11 rounded-xl" value={note} onChange={(e) => setNote(e.target.value)} />
             <Button className="mt-5 h-12 w-full rounded-xl" disabled={!recipient || parsed <= 0 || feeOrNull === null || tooMuch} onClick={() => setConfirm(true)}>

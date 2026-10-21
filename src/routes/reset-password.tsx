@@ -49,7 +49,7 @@ function ResetPasswordPage() {
 
   return (
     <AuthLayout>
-      <form className="w-full max-w-sm space-y-5" onSubmit={submit}>
+      <form method="post" className="w-full max-w-sm space-y-5" onSubmit={submit}>
         <div className="text-center lg:text-left">
           <h1 className="text-2xl font-semibold">Choose a new password</h1>
           <p className="mt-2 text-sm text-muted-foreground">Open this page from the link in your reset email.</p>

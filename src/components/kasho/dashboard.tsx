@@ -12,7 +12,7 @@ import { greetingName, useSession } from "@/lib/session";
 import { useConfig, useRefreshAll, useTransactions, useWalletState } from "@/lib/queries";
 import { startDeposit, startWithdrawal, syncTransaction } from "@/lib/api";
 import { feeFor } from "@/lib/fees";
-import { errorMessage, usd } from "@/lib/format";
+import { cleanAmount, errorMessage, usd } from "@/lib/format";
 import { status } from "@/components/kasho/status-modal";
 import { isCancelled, useStepUp } from "@/lib/stepup";
 import { cn } from "@/lib/utils";
@@ -118,7 +118,7 @@ function AmountField({ id, amount, setAmount }: { id: string; amount: string; se
   return (
     <div className="relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-      <Input id={id} inputMode="decimal" autoComplete="off" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
+      <Input id={id} inputMode="decimal" autoComplete="off" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(cleanAmount(e.target.value))} />
     </div>
   );
 }
@@ -222,7 +222,7 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
               <ProviderPicker provider={provider} setProvider={setProvider} />
 
               <div className="space-y-2">
-                <Label htmlFor="mm-phone">{providerName} phone number{provider === "natcash" ? " (optional)" : ""}</Label>
+                <Label htmlFor="mm-phone">{providerName} phone number (optional)</Label>
                 <Input id="mm-phone" inputMode="tel" autoComplete="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} aria-invalid={phoneBad} />
                 {phoneBad && <p className="text-xs text-destructive">Enter a valid phone number</p>}
                 <p className="text-xs text-muted-foreground">
@@ -247,7 +247,7 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                   <p className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium" role="status">{`Fee ${usd(fee)} · your wallet receives ${usd(Math.max(0, parsed - fee))}`}</p>
                 )}
                 {parsed > 0 && fee !== null && fee >= parsed && <p className="text-xs text-destructive">{`The amount must be more than the ${usd(fee)} fee.`}</p>}
-                {parsed > 0 && config && fee === null && <p className="text-xs text-destructive">We cannot calculate the fee for this amount.</p>}
+                {parsed > 0 && config && fee === null && parsed >= min && (max === null || parsed <= max) && <p className="text-xs text-destructive">We cannot calculate the fee for this amount.</p>}
                 {amount && parsed < min && <p className="text-xs text-destructive">Minimum deposit is ${min}.</p>}
                 {amount && max !== null && parsed > max && <p className="text-xs text-destructive">Maximum deposit is ${max}.</p>}
               </div>
@@ -328,7 +328,7 @@ function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; 
                 {`Fee ${usd(fee)} · total taken from your wallet ${usd(total)}${config ? ` · you receive about ${Math.floor(parsed * config.htgPerUsd).toLocaleString()} HTG` : ""}`}
               </p>
             )}
-            {parsed > 0 && config && feeOrNull === null && <p className="text-xs text-destructive">We cannot calculate the fee for this amount.</p>}
+            {parsed > 0 && config && feeOrNull === null && parsed >= min && (max === null || parsed <= max) && <p className="text-xs text-destructive">We cannot calculate the fee for this amount.</p>}
             <p className="text-xs text-muted-foreground">You will be asked for your password to confirm. This cannot be undone.</p>
             {amount && total > walletBalance && <p className="text-xs text-destructive">That is more than your wallet balance (fee included).</p>}
             {amount && parsed > 0 && parsed < min && <p className="text-xs text-destructive">Minimum withdrawal is ${min}.</p>}

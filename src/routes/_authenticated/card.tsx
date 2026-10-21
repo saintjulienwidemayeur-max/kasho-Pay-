@@ -23,7 +23,7 @@ import {
   cardTransactionsFn, createCardFn, freezeCardFn, fundCardFn, revealCardFn,
   syncCardFn, terminateCardFn, removeCardFn, updateCardFn, withdrawCardFn,
 } from "@/lib/api";
-import { errorMessage, usd } from "@/lib/format";
+import { cleanAmount, errorMessage, usd } from "@/lib/format";
 import type { Transaction } from "@/components/kasho/data";
 import { TransactionList } from "@/components/kasho/transactions-list";
 import { cn } from "@/lib/utils";
@@ -358,7 +358,7 @@ function MoveMoneyDialog({ mode, open, onOpenChange, card, walletBalance }: { mo
             <Label htmlFor="amount">Amount</Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-              <Input id="amount" inputMode="decimal" autoComplete="off" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
+              <Input id="amount" inputMode="decimal" autoComplete="off" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(cleanAmount(e.target.value))} />
             </div>
             <p className="text-xs text-muted-foreground">{mode === "in" ? `From wallet · ${usd(walletBalance)} available` : `On card · ${usd(card.balance)} available`}</p>
           </div>
@@ -544,7 +544,7 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
               <Label htmlFor="card-amount">Prefund amount (USD)</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-                <Input id="card-amount" inputMode="decimal" className="h-12 rounded-xl pl-7 text-lg" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
+                <Input id="card-amount" inputMode="decimal" className="h-12 rounded-xl pl-7 text-lg" value={amount} onChange={(e) => setAmount(cleanAmount(e.target.value))} />
               </div>
               <p className="text-xs text-muted-foreground">
                 {`Taken from your wallet (${usd(walletBalance)} available)${fee > 0 ? ` plus a ${usd(fee)} card creation fee` : ""}.`}

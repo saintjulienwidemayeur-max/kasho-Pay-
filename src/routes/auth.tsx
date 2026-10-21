@@ -106,7 +106,7 @@ function LoginPage() {
           <p className="mt-2 text-sm text-muted-foreground">Log in to manage your money.</p>
         </div>
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
+        <form method="post" className="space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <div className="relative">

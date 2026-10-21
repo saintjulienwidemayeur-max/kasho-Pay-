@@ -1,6 +1,9 @@
 // English -> French dictionary. Keys are the exact English UI strings.
 // Missing a translation? Add the English text as key. Open the app with ?i18n-debug=1 to list untranslated strings in the console.
 export const FR: Record<string, string> = {
+  "Already have an account?": "Vous avez déjà un compte ?", "Don't have an account?": "Vous n'avez pas de compte ?", "Already verified?": "Déjà vérifié ?",
+  "Review transfer": "Vérifier le transfert", "MonCash phone number (optional)": "Numéro de téléphone MonCash (facultatif)",
+  "NatCash phone number (optional)": "Numéro de téléphone NatCash (facultatif)", "We sent a verification email to": "Nous avons envoyé un e-mail de vérification à",
   "Your details": "Vos informations",
   "The card service needs a few details. We create your card holder automatically.": "Le service de cartes a besoin de quelques informations. Nous créons automatiquement votre titulaire de carte.",
   "Choose a network": "Choisissez un réseau",
@@ -324,6 +327,8 @@ export const MONTHS_FR: Record<string, string> = {
 
 // Dynamic strings: [regex, replacement]. $1... are the captured parts (amounts, names stay as they are).
 export const PATTERNS: [RegExp, string][] = [
+  [/^Step (\d+) of (\d+) · (.+)$/, "Étape $1 sur $2 · $3"],
+  [/^Wallet available · (.+)$/, "Disponible dans le portefeuille · $1"],
   // Fees (KASHOPAY LLC billing). More specific than the generic patterns below, so they come first.
   [/^Instant · Fee (\$[\d.,]+) · total (\$[\d.,]+)$/, "Instantané · Frais $1 · total $2"],
   [/^Fee (\$[\d.,]+) · your wallet receives (\$[\d.,]+)$/, "Frais $1 · votre portefeuille reçoit $2"],
