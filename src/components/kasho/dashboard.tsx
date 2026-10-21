@@ -180,8 +180,10 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
       status.processing("Starting your payment...");
       const res = await startDeposit({ data: { provider, amountUsd: parsed, phone: phone.trim() || undefined } });
       status.close();
-      setWaiting({ id: res.transactionId, url: res.checkoutUrl, ussd: res.ussd });
-      if (res.checkoutUrl) window.open(res.checkoutUrl, "_blank", "noopener");
+      // Only open real https pages (never javascript: or data: links).
+      const checkoutUrl = res.checkoutUrl && /^https:\/\//i.test(res.checkoutUrl) ? res.checkoutUrl : null;
+      setWaiting({ id: res.transactionId, url: checkoutUrl, ussd: res.ussd });
+      if (checkoutUrl) window.open(checkoutUrl, "_blank", "noopener");
       void refresh();
     } catch (e) {
       status.error(errorMessage(e));
