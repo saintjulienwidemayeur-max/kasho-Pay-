@@ -12,7 +12,8 @@ import { greetingName, useSession } from "@/lib/session";
 import { useConfig, useRefreshAll, useTransactions, useWalletState } from "@/lib/queries";
 import { startDeposit, startWithdrawal, syncTransaction } from "@/lib/api";
 import { feeFor } from "@/lib/fees";
-import { cleanAmount, errorMessage, usd } from "@/lib/format";
+import { cleanAmount, errorMessage, fmtNum, usd } from "@/lib/format";
+import { useLang } from "@/lib/i18n";
 import { status } from "@/components/kasho/status-modal";
 import { isCancelled, useStepUp } from "@/lib/stepup";
 import { cn } from "@/lib/utils";
@@ -54,7 +55,7 @@ export function DashboardPage() {
         <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs text-muted-foreground">Available balance{config?.sandbox ? " · test mode" : ""}</p>
+            <p className="text-xs text-muted-foreground">{`Available balance${config?.sandbox ? " · test mode" : ""}`}</p>
             <p className="mt-2 text-4xl font-semibold sm:text-5xl">{usd(walletBalance)}</p>
             <p className="mt-3 flex items-center gap-2 text-xs text-primary">
               <ShieldCheck className="h-3.5 w-3.5" /> Protected account
@@ -124,6 +125,7 @@ function AmountField({ id, amount, setAmount }: { id: string; amount: string; se
 }
 
 function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const lang = useLang();
   const refresh = useRefreshAll();
   const { data: config } = useConfig();
   const [provider, setProvider] = useState<MobileMoneyProvider>("moncash");
@@ -186,7 +188,8 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
       if (checkoutUrl) window.open(checkoutUrl, "_blank", "noopener");
       void refresh();
     } catch (e) {
-      status.error(errorMessage(e));
+      if (isCancelled(e)) status.close();
+      else status.error(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -222,7 +225,7 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
               <ProviderPicker provider={provider} setProvider={setProvider} />
 
               <div className="space-y-2">
-                <Label htmlFor="mm-phone">{providerName} phone number (optional)</Label>
+                <Label htmlFor="mm-phone">{`${providerName} phone number (optional)`}</Label>
                 <Input id="mm-phone" inputMode="tel" autoComplete="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} aria-invalid={phoneBad} />
                 {phoneBad && <p className="text-xs text-destructive">Enter a valid phone number</p>}
                 <p className="text-xs text-muted-foreground">
@@ -241,7 +244,7 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                   ))}
                 </div>
                 {parsed > 0 && config && (
-                  <p className="text-xs text-muted-foreground">You pay about {htg.toLocaleString()} HTG (rate: {config.htgPerUsd} HTG per $1).</p>
+                  <p className="text-xs text-muted-foreground">{`You pay about ${fmtNum(htg, lang)} HTG (rate: ${fmtNum(config.htgPerUsd, lang)} HTG per $1).`}</p>
                 )}
                 {parsed > 0 && fee !== null && (
                   <p className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium" role="status">{`Fee ${usd(fee)} · your wallet receives ${usd(Math.max(0, parsed - fee))}`}</p>
@@ -266,6 +269,7 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
 }
 
 function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; onOpenChange: (v: boolean) => void; walletBalance: number }) {
+  const lang = useLang();
   const refresh = useRefreshAll();
   const stepUp = useStepUp();
   const { data: config } = useConfig();
@@ -286,9 +290,8 @@ function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; 
     if (!valid) return;
     setBusy(true);
     try {
-      const confirmPassword = await stepUp.ask();
-      status.processing("Sending your withdrawal...");
-      await startWithdrawal({ data: { provider, amountUsd: parsed, phone, confirmPassword } });
+      // The dialog stays open while the server checks the password: a wrong one is shown inline, not as a failure.
+      await stepUp.ask((confirmPassword) => startWithdrawal({ data: { provider, amountUsd: parsed, phone, confirmPassword } }));
       status.success("Withdrawal submitted", `${usd(parsed)} to ${providerName}. You will get a confirmation on your phone.`);
       void refresh();
       setAmount(""); setPhone("");
@@ -314,7 +317,7 @@ function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; 
           <ProviderPicker provider={provider} setProvider={setProvider} />
 
           <div className="space-y-2">
-            <Label htmlFor="wd-phone">{providerName} phone number</Label>
+            <Label htmlFor="wd-phone">{`${providerName} phone number`}</Label>
             <Input id="wd-phone" inputMode="tel" autoComplete="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} aria-invalid={phone.trim().length > 0 && phone.replace(/\D/g, "").length < 8} />
             {phone.trim().length > 0 && phone.replace(/\D/g, "").length < 8 && <p className="text-xs text-destructive">Enter a valid phone number</p>}
           </div>
@@ -322,10 +325,10 @@ function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; 
           <div className="space-y-2">
             <Label htmlFor="wd-amount">Amount (USD)</Label>
             <AmountField id="wd-amount" amount={amount} setAmount={setAmount} />
-            <p className="text-xs text-muted-foreground">Wallet available · {usd(walletBalance)}</p>
+            <p className="text-xs text-muted-foreground">{`Wallet available · ${usd(walletBalance)}`}</p>
             {parsed > 0 && feeOrNull !== null && (
               <p className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium" role="status">
-                {`Fee ${usd(fee)} · total taken from your wallet ${usd(total)}${config ? ` · you receive about ${Math.floor(parsed * config.htgPerUsd).toLocaleString()} HTG` : ""}`}
+                {`Fee ${usd(fee)} · total taken from your wallet ${usd(total)}${config ? ` · you receive about ${fmtNum(Math.floor(parsed * config.htgPerUsd), lang)} HTG` : ""}`}
               </p>
             )}
             {parsed > 0 && config && feeOrNull === null && parsed >= min && (max === null || parsed <= max) && <p className="text-xs text-destructive">We cannot calculate the fee for this amount.</p>}

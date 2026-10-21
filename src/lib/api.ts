@@ -2,6 +2,20 @@
 // Every call sends the Supabase access token; the backend verifies it.
 import { supabase } from "@/integrations/supabase/client";
 import type { FeeRule } from "@/lib/fees";
+import { canPromptMfa, requestMfa } from "@/lib/mfa-gate";
+
+/** Error from the Kasho backend. `code` is the machine-readable reason (MFA_REQUIRED, PASSWORD_INVALID...). */
+export class ApiError extends Error {
+  code: string | undefined;
+  status: number;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+export const errorCode = (e: unknown): string | undefined => (e as { code?: string } | null)?.code;
 
 // If the app is opened from another device on the same Wi-Fi (e.g. http://192.168.1.155:5173),
 // "localhost" would point to that device, so use the same host as the page with the backend port.
@@ -15,7 +29,7 @@ function apiUrl(): string {
   return (env ?? "http://localhost:4000").replace(/\/+$/, "");
 }
 
-async function call<T>(name: string, body: unknown = {}): Promise<T> {
+async function call<T>(name: string, body: unknown = {}, retriedAfterMfa = false): Promise<T> {
   const { data: sess } = await supabase.auth.getSession();
   const token = sess.session?.access_token;
   let res: Response;
@@ -44,8 +58,14 @@ async function call<T>(name: string, body: unknown = {}): Promise<T> {
     /* empty or non-JSON body */
   }
   if (!res.ok) {
+    const code: string | undefined = typeof json?.error?.code === "string" ? json.error.code : undefined;
+    // 2FA is on but this session has not passed it: ask for the authenticator code, then retry the request once.
+    if (res.status === 403 && code === "MFA_REQUIRED" && !retriedAfterMfa && canPromptMfa()) {
+      await requestMfa(); // throws Error("cancelled") when the user closes the prompt
+      return call<T>(name, body, true);
+    }
     if (res.status === 401) void supabase.auth.signOut();
-    throw new Error(json?.error?.message ?? (json ? "Something went wrong. Please try again." : `The server did not answer correctly (HTTP ${res.status}). Please try again in a moment.`));
+    throw new ApiError(json?.error?.message ?? (json ? "Something went wrong. Please try again." : `The server did not answer correctly (HTTP ${res.status}). Please try again in a moment.`), res.status, code);
   }
   return json.data as T;
 }
@@ -73,7 +93,7 @@ export const startWithdrawal = (a: Arg<{ provider: "moncash" | "natcash"; amount
   call<{ transactionId: string; status: "pending"; fee: number }>("startWithdrawal", a.data);
 
 export const searchUsers = (a: Arg<{ q: string }>) => call<{ username: string; name: string; kashoId?: string; email?: string }[]>("searchUsers", a.data);
-export const sendMoney = (a: Arg<{ username: string; amountUsd: number; note?: string | undefined }>) =>
+export const sendMoney = (a: Arg<{ username: string; amountUsd: number; note?: string | undefined; idempotencyKey?: string | undefined }>) =>
   call<{ reference: string; recipient: string; fee: number }>("sendMoney", a.data);
 
 export type CardHolderInput = {
@@ -100,7 +120,8 @@ export const fileDisputeFn = (a: Arg<{ transactionRef: string; reason: string; n
 export const sendSupportMessage = (a: Arg<{ message: string }>) => call<{ ok: boolean }>("sendSupportMessage", a.data);
 
 export const changePassword = (a: Arg<{ currentPassword: string; newPassword: string }>) => call<{ ok: boolean }>("changePassword", a.data);
-export const getIdentity = () => call<{ idNumber: string }>("getIdentity", {});
+// Needs the password (step-up): ask for it with useStepUp().ask() and pass it as confirmPassword.
+export const getIdentity = (a: Arg<{ confirmPassword: string }>) => call<{ idNumber: string }>("getIdentity", a.data);
 export const changeEmail = (a: Arg<{ currentPassword: string; newEmail: string }>) => call<{ ok: boolean }>("changeEmail", a.data);
 
 export const setCardCode = (a: Arg<{ currentPassword: string; code: string }>) =>

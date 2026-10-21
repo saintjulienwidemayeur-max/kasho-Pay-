@@ -10,3 +10,8 @@ export function errorMessage(e: unknown, fallback = "Something went wrong. Pleas
   const m = (e as { message?: string } | null)?.message;
   return m && !m.includes("fetch") ? m : fallback;
 }
+
+/** Number with thousands separators in the UI language: 1,310 in English, 1 310 in French. */
+export function fmtNum(n: number, lang: "en" | "fr" = "en"): string {
+  return Number(n).toLocaleString(lang === "fr" ? "fr-FR" : "en-US");
+}

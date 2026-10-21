@@ -84,7 +84,7 @@ function ProfilePage() {
           <p className="truncate text-lg font-semibold">{name}</p>
           <p className="truncate text-sm text-muted-foreground">{email || "No email on file"}</p>
           <p className="mt-1 flex items-center justify-center gap-1.5 text-xs text-primary sm:justify-start">
-            <ShieldCheck className="h-3.5 w-3.5" /> Kasho ID · {session?.kashoId || "-"}
+            <ShieldCheck className="h-3.5 w-3.5" /> {`Kasho ID · ${session?.kashoId || "-"}`}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setOpen("personal")}>Edit</Button>
@@ -169,8 +169,8 @@ function PersonalInfoDialog({ open, onOpenChange }: { open: boolean; onOpenChang
       if (error) throw error;
 
       if (email.trim().toLowerCase() !== session.email.toLowerCase()) {
-        const currentPassword = await stepUp.ask(); // password + 2FA code, enforced again by the server
-        await changeEmail({ data: { currentPassword, newEmail: email.trim() } });
+        // password + 2FA code, enforced again by the server; a wrong password is retried inline
+        await stepUp.ask((currentPassword) => changeEmail({ data: { currentPassword, newEmail: email.trim() } }));
         toast.message("Check your inbox to confirm your new email address.");
       }
       await refreshSession();

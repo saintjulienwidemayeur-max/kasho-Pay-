@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import QRCode from "qrcode";
 import { Check, ChevronRight, Delete, Link2, ScanLine, Search, Send, Share2, Smartphone } from "lucide-react";
@@ -16,6 +16,7 @@ import { feeFor } from "@/lib/fees";
 import { searchUsers, sendMoney } from "@/lib/api";
 import { useSession, initials } from "@/lib/session";
 import { errorMessage, usd } from "@/lib/format";
+import { isCancelled } from "@/lib/stepup";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/transfer")({
@@ -123,17 +124,25 @@ function TransferPage() {
     }
   };
 
+  // One idempotency key per confirm session: a retry (double tap, timeout) can never send the money twice.
+  // A new key is made after a success or when the recipient, amount or note change.
+  const idemKey = useRef<string | null>(null);
+  useEffect(() => { idemKey.current = null; }, [recipient?.username, parsed, note]);
+
   const submit = async () => {
-    if (!recipient) return;
+    if (!recipient || busy) return;
     setBusy(true);
     try {
       status.processing("Sending your money...");
-      const res = await sendMoney({ data: { username: recipient.username, amountUsd: parsed, note: note || undefined } });
+      idemKey.current ??= crypto.randomUUID();
+      const res = await sendMoney({ data: { username: recipient.username, amountUsd: parsed, note: note || undefined, idempotencyKey: idemKey.current } });
+      idemKey.current = null;
       setDone({ reference: res.reference });
       status.success("Money sent", `${usd(parsed)} sent to ${recipient.name}`);
       void refresh();
     } catch (e) {
-      status.error(errorMessage(e));
+      if (isCancelled(e)) status.close();
+      else status.error(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -168,9 +177,9 @@ function TransferPage() {
               <div className="mt-4 flex gap-2">
                 <label className="relative block min-w-0 flex-1">
                   <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                  <Input aria-label="Search for a recipient" placeholder="Name, email, Kasho ID or phone" className="h-11 rounded-xl pl-10" value={query} onChange={(e) => setQuery(e.target.value)} />
+                  <Input aria-label="Search for a recipient" placeholder="Name, email, ID or phone" className="h-11 rounded-xl pl-10" value={query} onChange={(e) => setQuery(e.target.value)} />
                 </label>
-                <Button type="button" variant="outline" className="h-11 shrink-0 rounded-xl" onClick={() => setScanning(true)} aria-label="Scan a QR code"><ScanLine />Scan</Button>
+                <Button type="button" variant="outline" className="h-11 shrink-0 rounded-xl" onClick={() => setScanning(true)} aria-label="Scan a QR code"><ScanLine /><span className="max-sm:sr-only">Scan</span></Button>
               </div>
 
               {debounced.length >= 2 && (
@@ -253,7 +262,7 @@ function TransferPage() {
             </div>
             <p className="mt-5 text-xl font-semibold">{session?.name}</p>
             <p className="mt-1 text-sm text-muted-foreground">@{username}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Kasho ID · {session?.kashoId}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{`Kasho ID · ${session?.kashoId ?? ""}`}</p>
             <div className="mt-6 grid grid-cols-2 gap-3">
               <Button variant="outline" className="h-11" onClick={() => { navigator.clipboard.writeText(payLink); toast.success("Payment link copied"); }}><Link2 />Copy link</Button>
               <Button className="h-11" onClick={share}><Share2 />Share QR</Button>

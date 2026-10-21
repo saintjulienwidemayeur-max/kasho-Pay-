@@ -4,13 +4,15 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "../components/ui/sonner";
+import { dismissStaleToasts } from "@/lib/toast";
 
 function NotFoundComponent() {
   return (
@@ -34,8 +36,9 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   const router = useRouter();
 
   return (
@@ -47,9 +50,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
-        {error?.message && (
+        {message && (
           <p className="mx-auto mt-3 max-w-sm break-words rounded-md bg-muted px-3 py-2 text-left text-xs text-muted-foreground">
-            {String(error.message).slice(0, 300)}
+            {message.slice(0, 300)}
           </p>
         )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
@@ -123,6 +126,9 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Toasts from the previous screen (often errors) must not follow the user to the next one.
+  useEffect(() => { dismissStaleToasts(); }, [pathname]);
 
   return (
     <QueryClientProvider client={queryClient}>

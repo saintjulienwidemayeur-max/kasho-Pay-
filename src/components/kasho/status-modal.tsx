@@ -13,7 +13,8 @@ const set = (s: State) => { state = s; subs.forEach((f) => f()); };
 export const status = {
   processing: (title = "Processing...", message?: string) => set({ kind: "processing", title, ...(message ? { message } : {}) }),
   success: (title = "Success", message?: string) => set({ kind: "success", title, ...(message ? { message } : {}) }),
-  error: (message = "Something went wrong. Please try again.", title = "Failed") => set({ kind: "error", title, message }),
+  // A cancelled action (user closed the 2FA / password prompt) is not an error: just close.
+  error: (message = "Something went wrong. Please try again.", title = "Failed") => set(message === "cancelled" ? { kind: "idle" } : { kind: "error", title, message }),
   close: () => set({ kind: "idle" }),
 };
 

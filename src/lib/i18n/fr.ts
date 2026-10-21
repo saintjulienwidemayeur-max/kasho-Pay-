@@ -1,6 +1,20 @@
 // English -> French dictionary. Keys are the exact English UI strings.
 // Missing a translation? Add the English text as key. Open the app with ?i18n-debug=1 to list untranslated strings in the console.
 export const FR: Record<string, string> = {
+  // Countries (signup list)
+  "Haiti": "Haïti", "United States": "États-Unis", "Dominican Republic": "République dominicaine", "Brazil": "Brésil", "Chile": "Chili",
+  "Mexico": "Mexique", "United Kingdom": "Royaume-Uni", "Belgium": "Belgique", "Switzerland": "Suisse", "Spain": "Espagne",
+  "Germany": "Allemagne", "Italy": "Italie", "French Guiana": "Guyane française", "Jamaica": "Jamaïque", "Nigeria": "Nigéria",
+  "Senegal": "Sénégal", "Cote d'Ivoire": "Côte d'Ivoire",
+  // Filters, balances, 2FA prompt, password strength
+  "All": "Tous", "Transfers": "Transferts", "Available balance · test mode": "Solde disponible · mode test",
+  "Name, email, ID or phone": "Nom, e-mail, ID ou tél.",
+  "MonCash phone number": "Numéro de téléphone MonCash", "NatCash phone number": "Numéro de téléphone NatCash",
+  "Wrong password. Try again.": "Mot de passe incorrect. Réessayez.",
+  "Enter your 2FA code": "Saisissez votre code 2FA", "Open your authenticator app and enter the 6-digit code to continue.": "Ouvrez votre application d'authentification et saisissez le code à 6 chiffres pour continuer.",
+  "2FA is required.": "La 2FA est requise.",
+  "Use at least 8 characters. Mix letters, numbers and symbols for a stronger password.": "Utilisez au moins 8 caractères. Mélangez lettres, chiffres et symboles pour un mot de passe plus solide.",
+  "Password strength:": "Solidité du mot de passe :", "Too short": "Trop court", "Weak": "Faible", "OK": "Correct", "Strong": "Fort",
   "Already have an account?": "Vous avez déjà un compte ?", "Don't have an account?": "Vous n'avez pas de compte ?", "Already verified?": "Déjà vérifié ?",
   "Review transfer": "Vérifier le transfert", "MonCash phone number (optional)": "Numéro de téléphone MonCash (facultatif)",
   "NatCash phone number (optional)": "Numéro de téléphone NatCash (facultatif)", "We sent a verification email to": "Nous avons envoyé un e-mail de vérification à",
@@ -327,6 +341,8 @@ export const MONTHS_FR: Record<string, string> = {
 
 // Dynamic strings: [regex, replacement]. $1... are the captured parts (amounts, names stay as they are).
 export const PATTERNS: [RegExp, string][] = [
+  [/^You pay about (.+) HTG \(rate: (.+) HTG per \$1\)\.$/, "Vous payez environ $1 HTG (taux : $2 HTG pour 1 $)."],
+  [/^Kasho ID · (.+)$/, "ID Kasho · $1"],
   [/^Step (\d+) of (\d+) · (.+)$/, "Étape $1 sur $2 · $3"],
   [/^Wallet available · (.+)$/, "Disponible dans le portefeuille · $1"],
   // Fees (KASHOPAY LLC billing). More specific than the generic patterns below, so they come first.
@@ -371,7 +387,7 @@ export const PATTERNS: [RegExp, string][] = [
   [/^Verification email sent to (.+)$/, "E-mail de vérification envoyé à $1"],
   [/^Resend email in (\d+)s$/, "Renvoyer l'e-mail dans $1 s"],
   [/^Reference (KYC-\d+)$/, "Référence $1"],
-  [/^Minimum prefund is \$(.+)\.$/, "Le préfinancement minimum est de $$$1."],
+  [/^Minimum prefund is \$(.+)\.$/, "Le préfinancement minimum est de $$1."],
   [/^Step (\d+) of (\d+)$/, "Étape $1 sur $2"],
   [/^Pay (.+) on Kasho$/, "Payer $1 sur Kasho"],
   [/^Minimum deposit is (.+)\.$/, "Le dépôt minimum est de $1."],
