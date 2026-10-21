@@ -25,10 +25,11 @@ const DISPUTE_REASONS = [
   "Other",
 ];
 
-export function TransactionList({ items, selected, onSelect, compact = false }: { items: Transaction[]; selected: Transaction | null; onSelect: (item: Transaction | null) => void; compact?: boolean }) {
+export function TransactionList({ items, selected, onSelect, compact = false, pageSize = 8 }: { items: Transaction[]; selected: Transaction | null; onSelect: (item: Transaction | null) => void; compact?: boolean; pageSize?: number }) {
   const navigate = useNavigate();
   const disputes = useDisputes();
   const refresh = useRefreshAll();
+  const [shown, setShown] = useState(pageSize);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [reason, setReason] = useState(DISPUTE_REASONS[0]!);
   const [note, setNote] = useState("");
@@ -62,7 +63,7 @@ export function TransactionList({ items, selected, onSelect, compact = false }: 
 
   const groups = compact
     ? ([["Recent activity", items.slice(0, 4)]] as const)
-    : DATE_GROUPS.map((d) => [d, items.filter((t) => t.date === d)] as const);
+    : (() => { const visible = items.slice(0, shown); return DATE_GROUPS.map((d) => [d, visible.filter((t) => t.date === d)] as const); })();
 
   const dispute = selected ? disputes[selected.id] : undefined;
 
@@ -117,6 +118,11 @@ export function TransactionList({ items, selected, onSelect, compact = false }: 
             </div>
           </section>
         ) : null)}
+        {!compact && items.length > shown && (
+          <Button type="button" variant="outline" className="h-11 w-full rounded-xl" onClick={() => setShown((n) => n + pageSize)}>
+            Show more
+          </Button>
+        )}
       </div>
 
       <Drawer open={!!selected} onOpenChange={(open) => !open && onSelect(null)}>

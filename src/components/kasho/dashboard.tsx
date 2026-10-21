@@ -129,7 +129,6 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
   const refresh = useRefreshAll();
   const { data: config } = useConfig();
   const [provider, setProvider] = useState<MobileMoneyProvider>("moncash");
-  const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState<{ id: string; url: string | null; ussd: boolean } | null>(null);
@@ -141,10 +140,9 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
   const fee = feeFor(config?.fees, "wallet_deposit", parsed);
   const providerName = MOBILE_MONEY_PROVIDERS.find((p) => p.id === provider)!.name;
   const htg = config ? Math.ceil(parsed * config.htgPerUsd) : 0;
-  const phoneBad = provider === "moncash" && phone.trim().length > 0 && phone.replace(/\D/g, "").length < 8;
-  const valid = parsed >= min && (max === null || parsed <= max) && fee !== null && fee < parsed && (provider === "natcash" || !phoneBad);
+  const valid = parsed >= min && (max === null || parsed <= max) && fee !== null && fee < parsed;
 
-  const reset = () => { setWaiting(null); setAmount(""); setPhone(""); settled.current = false; };
+  const reset = () => { setWaiting(null); setAmount(""); settled.current = false; };
 
   // After the payment is started, ask the backend every few seconds for the real status.
   useEffect(() => {
@@ -180,7 +178,7 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
     setBusy(true);
     try {
       status.processing("Starting your payment...");
-      const res = await startDeposit({ data: { provider, amountUsd: parsed, phone: phone.trim() || undefined } });
+      const res = await startDeposit({ data: { provider, amountUsd: parsed } });
       status.close();
       // Only open real https pages (never javascript: or data: links).
       const checkoutUrl = res.checkoutUrl && /^https:\/\//i.test(res.checkoutUrl) ? res.checkoutUrl : null;
@@ -224,16 +222,7 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
             <div className="space-y-4">
               <ProviderPicker provider={provider} setProvider={setProvider} />
 
-              <div className="space-y-2">
-                <Label htmlFor="mm-phone">{`${providerName} phone number (optional)`}</Label>
-                <Input id="mm-phone" inputMode="tel" autoComplete="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} aria-invalid={phoneBad} />
-                {phoneBad && <p className="text-xs text-destructive">Enter a valid phone number</p>}
-                <p className="text-xs text-muted-foreground">
-                  {provider === "moncash" && phone.trim()
-                    ? "You will get a MonCash prompt on this phone."
-                    : `You will be sent to a secure ${providerName} page to pay.`}
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground">{`You will be sent to a secure ${providerName} page to pay.`}</p>
 
               <div className="space-y-2">
                 <Label htmlFor="mm-amount">Amount (USD)</Label>

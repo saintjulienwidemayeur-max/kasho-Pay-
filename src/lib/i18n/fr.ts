@@ -1,6 +1,7 @@
 // English -> French dictionary. Keys are the exact English UI strings.
 // Missing a translation? Add the English text as key. Open the app with ?i18n-debug=1 to list untranslated strings in the console.
 export const FR: Record<string, string> = {
+  "Show more": "Voir plus",
   // Countries (signup list)
   "Haiti": "Haïti", "United States": "États-Unis", "Dominican Republic": "République dominicaine", "Brazil": "Brésil", "Chile": "Chili",
   "Mexico": "Mexique", "United Kingdom": "Royaume-Uni", "Belgium": "Belgique", "Switzerland": "Suisse", "Spain": "Espagne",
