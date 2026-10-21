@@ -102,8 +102,9 @@ function ProviderPicker({ provider, setProvider }: { provider: MobileMoneyProvid
         <button
           key={id}
           type="button"
+          aria-pressed={provider === id}
           onClick={() => setProvider(id)}
-          className={cn("flex items-center gap-3 rounded-xl border p-3 text-left transition", provider === id ? "border-primary bg-primary/10" : "border-border hover:bg-secondary")}
+          className={cn("flex min-h-12 items-center gap-3 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", provider === id ? "border-primary bg-primary/10" : "border-border hover:bg-secondary")}
         >
           <Badge className="h-9 w-9 shrink-0 rounded-lg" />
           <span className="text-sm font-medium">{name}</span>
@@ -117,7 +118,7 @@ function AmountField({ id, amount, setAmount }: { id: string; amount: string; se
   return (
     <div className="relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-      <Input id={id} inputMode="decimal" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
+      <Input id={id} inputMode="decimal" autoComplete="off" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
     </div>
   );
 }
@@ -138,7 +139,8 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
   const fee = feeFor(config?.fees, "wallet_deposit", parsed);
   const providerName = MOBILE_MONEY_PROVIDERS.find((p) => p.id === provider)!.name;
   const htg = config ? Math.ceil(parsed * config.htgPerUsd) : 0;
-  const valid = parsed >= min && (max === null || parsed <= max) && fee !== null && fee < parsed && (provider === "natcash" || phone.trim().length === 0 || phone.replace(/\D/g, "").length >= 8);
+  const phoneBad = provider === "moncash" && phone.trim().length > 0 && phone.replace(/\D/g, "").length < 8;
+  const valid = parsed >= min && (max === null || parsed <= max) && fee !== null && fee < parsed && (provider === "natcash" || !phoneBad);
 
   const reset = () => { setWaiting(null); setAmount(""); setPhone(""); settled.current = false; };
 
@@ -208,7 +210,7 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                 <a href={waiting.url} target="_blank" rel="noopener noreferrer"><ExternalLink /> Open payment page</a>
               </Button>
             )}
-            <button className="block w-full text-xs text-muted-foreground hover:text-foreground" onClick={() => { reset(); onOpenChange(false); }}>
+            <button className="block min-h-11 w-full text-xs text-muted-foreground hover:text-foreground" onClick={() => { reset(); onOpenChange(false); }}>
               Close (the payment keeps being tracked in your history)
             </button>
           </div>
@@ -219,7 +221,8 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
 
               <div className="space-y-2">
                 <Label htmlFor="mm-phone">{providerName} phone number{provider === "natcash" ? " (optional)" : ""}</Label>
-                <Input id="mm-phone" inputMode="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Input id="mm-phone" inputMode="tel" autoComplete="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} aria-invalid={phoneBad} />
+                {phoneBad && <p className="text-xs text-destructive">Enter a valid phone number</p>}
                 <p className="text-xs text-muted-foreground">
                   {provider === "moncash" && phone.trim()
                     ? "You will get a MonCash prompt on this phone."
@@ -232,15 +235,17 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                 <AmountField id="mm-amount" amount={amount} setAmount={setAmount} />
                 <div className="flex flex-wrap gap-2">
                   {QUICK_AMOUNTS.map((v) => (
-                    <Button key={v} type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setAmount(String(v))}>${v}</Button>
+                    <Button key={v} type="button" variant="outline" size="sm" className="h-11 min-w-14 rounded-full px-4 text-sm" onClick={() => setAmount(String(v))}>${v}</Button>
                   ))}
                 </div>
                 {parsed > 0 && config && (
                   <p className="text-xs text-muted-foreground">You pay about {htg.toLocaleString()} HTG (rate: {config.htgPerUsd} HTG per $1).</p>
                 )}
                 {parsed > 0 && fee !== null && (
-                  <p className="text-xs text-muted-foreground">{`Fee ${usd(fee)} · your wallet receives ${usd(parsed - fee)}`}</p>
+                  <p className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium" role="status">{`Fee ${usd(fee)} · your wallet receives ${usd(Math.max(0, parsed - fee))}`}</p>
                 )}
+                {parsed > 0 && fee !== null && fee >= parsed && <p className="text-xs text-destructive">{`The amount must be more than the ${usd(fee)} fee.`}</p>}
+                {parsed > 0 && config && fee === null && <p className="text-xs text-destructive">We cannot calculate the fee for this amount.</p>}
                 {amount && parsed < min && <p className="text-xs text-destructive">Minimum deposit is ${min}.</p>}
                 {amount && max !== null && parsed > max && <p className="text-xs text-destructive">Maximum deposit is ${max}.</p>}
               </div>
@@ -308,7 +313,8 @@ function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; 
 
           <div className="space-y-2">
             <Label htmlFor="wd-phone">{providerName} phone number</Label>
-            <Input id="wd-phone" inputMode="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Input id="wd-phone" inputMode="tel" autoComplete="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} aria-invalid={phone.trim().length > 0 && phone.replace(/\D/g, "").length < 8} />
+            {phone.trim().length > 0 && phone.replace(/\D/g, "").length < 8 && <p className="text-xs text-destructive">Enter a valid phone number</p>}
           </div>
 
           <div className="space-y-2">
@@ -316,10 +322,12 @@ function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; 
             <AmountField id="wd-amount" amount={amount} setAmount={setAmount} />
             <p className="text-xs text-muted-foreground">Wallet available · {usd(walletBalance)}</p>
             {parsed > 0 && feeOrNull !== null && (
-              <p className="text-xs text-muted-foreground">
+              <p className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium" role="status">
                 {`Fee ${usd(fee)} · total taken from your wallet ${usd(total)}${config ? ` · you receive about ${Math.floor(parsed * config.htgPerUsd).toLocaleString()} HTG` : ""}`}
               </p>
             )}
+            {parsed > 0 && config && feeOrNull === null && <p className="text-xs text-destructive">We cannot calculate the fee for this amount.</p>}
+            <p className="text-xs text-muted-foreground">You will be asked for your password to confirm. This cannot be undone.</p>
             {amount && total > walletBalance && <p className="text-xs text-destructive">That is more than your wallet balance (fee included).</p>}
             {amount && parsed > 0 && parsed < min && <p className="text-xs text-destructive">Minimum withdrawal is ${min}.</p>}
             {amount && max !== null && parsed > max && <p className="text-xs text-destructive">Maximum withdrawal is ${max}.</p>}

@@ -158,7 +158,10 @@ export const FR: Record<string, string> = {
   // transfer
   "Send money": "Envoyer de l'argent", "Receive money": "Recevoir de l'argent", "Choose recipient": "Choisir le destinataire",
   "No Kasho user found.": "Aucun utilisateur Kasho trouvé.", "Sending to": "Envoi à", "Search for a recipient above.": "Recherchez un destinataire ci-dessus.",
-  "USD · $": "USD · $", "Kasho transfer": "Transfert Kasho", "Instant · Free": "Instantané · Gratuit", "Copy link": "Copier le lien", "Share QR": "Partager le QR",
+  "USD · $": "USD · $", "Kasho transfer": "Transfert Kasho", "Instant · Free": "Instantané · Gratuit", "Instant": "Instantané", "We cannot calculate the fee for this amount.": "Impossible de calculer les frais pour ce montant.",
+  "Choose a recipient to continue.": "Choisissez un destinataire pour continuer.", "Enter an amount to continue.": "Saisissez un montant pour continuer.",
+  "You will be asked for your password to confirm. This cannot be undone.": "Votre mot de passe vous sera demandé pour confirmer. Cette action est irréversible.",
+  "Search for a recipient": "Rechercher un destinataire", "Copy link": "Copier le lien", "Share QR": "Partager le QR",
   "Confirm transfer": "Confirmer le transfert", "Review your payment before sending.": "Vérifiez votre paiement avant l'envoi.",
   "Money sent": "Argent envoyé", "Done": "Terminé", "Send & Receive Money | Kasho Pay": "Envoyer et recevoir | Kasho Pay",
   "Send or receive money instantly with Kasho Pay.": "Envoyez ou recevez de l'argent instantanément avec Kasho Pay.",
@@ -322,6 +325,7 @@ export const MONTHS_FR: Record<string, string> = {
 // Dynamic strings: [regex, replacement]. $1... are the captured parts (amounts, names stay as they are).
 export const PATTERNS: [RegExp, string][] = [
   // Fees (KASHOPAY LLC billing). More specific than the generic patterns below, so they come first.
+  [/^Instant · Fee (\$[\d.,]+) · total (\$[\d.,]+)$/, "Instantané · Frais $1 · total $2"],
   [/^Fee (\$[\d.,]+) · your wallet receives (\$[\d.,]+)$/, "Frais $1 · votre portefeuille reçoit $2"],
   [/^Fee (\$[\d.,]+) · total taken from your wallet (\$[\d.,]+) · you receive about (.+) HTG$/, "Frais $1 · total prélevé sur votre portefeuille $2 · vous recevez environ $3 HTG"],
   [/^Fee (\$[\d.,]+) · total taken from your wallet (\$[\d.,]+)$/, "Frais $1 · total prélevé sur votre portefeuille $2"],

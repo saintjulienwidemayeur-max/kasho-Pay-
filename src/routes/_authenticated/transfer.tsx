@@ -167,10 +167,10 @@ function TransferPage() {
               <h2 className="text-sm font-semibold">Choose recipient</h2>
               <div className="mt-4 flex gap-2">
                 <label className="relative block min-w-0 flex-1">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Name, email, Kasho ID or phone" className="h-10 rounded-xl pl-10" value={query} onChange={(e) => setQuery(e.target.value)} />
+                  <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                  <Input aria-label="Search for a recipient" placeholder="Name, email, Kasho ID or phone" className="h-11 rounded-xl pl-10" value={query} onChange={(e) => setQuery(e.target.value)} />
                 </label>
-                <Button type="button" variant="outline" className="h-10 shrink-0 rounded-xl" onClick={() => setScanning(true)} aria-label="Scan a QR code"><ScanLine />Scan</Button>
+                <Button type="button" variant="outline" className="h-11 shrink-0 rounded-xl" onClick={() => setScanning(true)} aria-label="Scan a QR code"><ScanLine />Scan</Button>
               </div>
 
               {debounced.length >= 2 && (
@@ -232,12 +232,13 @@ function TransferPage() {
           <section className="mt-6 rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-xl border border-primary bg-primary/10 p-4">
               <Smartphone className="h-5 w-5 text-primary" />
-              <span><span className="block text-sm font-medium">Kasho transfer</span><span className="block text-xs text-muted-foreground">Instant · Free</span></span>
+              <span><span className="block text-sm font-medium">Kasho transfer</span><span className="block text-xs text-muted-foreground">{parsed > 0 && fee > 0 ? `Instant · Fee ${usd(fee)} · total ${usd(parsed + fee)}` : fee > 0 ? "Instant" : "Instant · Free"}</span></span>
             </div>
             <Input placeholder="Add a note (optional)" maxLength={140} className="mt-4 h-11 rounded-xl" value={note} onChange={(e) => setNote(e.target.value)} />
             <Button className="mt-5 h-12 w-full rounded-xl" disabled={!recipient || parsed <= 0 || feeOrNull === null || tooMuch} onClick={() => setConfirm(true)}>
               Review transfer<Send />
             </Button>
+            {(!recipient || parsed <= 0) && <p className="mt-2 text-center text-xs text-muted-foreground">{!recipient ? "Choose a recipient to continue." : "Enter an amount to continue."}</p>}
           </section>
         </TabsContent>
 
@@ -254,8 +255,8 @@ function TransferPage() {
             <p className="mt-1 text-sm text-muted-foreground">@{username}</p>
             <p className="mt-1 text-sm text-muted-foreground">Kasho ID · {session?.kashoId}</p>
             <div className="mt-6 grid grid-cols-2 gap-3">
-              <Button variant="outline" onClick={() => { navigator.clipboard.writeText(payLink); toast.success("Payment link copied"); }}><Link2 />Copy link</Button>
-              <Button onClick={share}><Share2 />Share QR</Button>
+              <Button variant="outline" className="h-11" onClick={() => { navigator.clipboard.writeText(payLink); toast.success("Payment link copied"); }}><Link2 />Copy link</Button>
+              <Button className="h-11" onClick={share}><Share2 />Share QR</Button>
             </div>
           </section>
         </TabsContent>
@@ -275,7 +276,7 @@ function TransferPage() {
               <h2 className="mt-5 text-2xl font-semibold">Money sent</h2>
               <p className="mt-2 text-sm text-muted-foreground">{usd(parsed)} is on its way to {recipient?.name}.</p>
               <p className="mt-1 text-xs text-muted-foreground">Reference {done.reference}</p>
-              <Button className="mt-6 w-full" onClick={closeDrawer}>Done</Button>
+              <Button className="mt-6 h-11 w-full" onClick={closeDrawer}>Done</Button>
             </div>
           ) : (
             <div className="px-6 pb-8">
