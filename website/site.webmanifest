@@ -1,0 +1,21 @@
+{
+  "name": "Kasho Pay",
+  "short_name": "Kasho Pay",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#020604",
+  "theme_color": "#020604",
+  "lang": "ht",
+  "icons": [
+    {
+      "src": "/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/img/kasho-mark.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
