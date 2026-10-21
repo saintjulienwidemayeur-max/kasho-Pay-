@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { useRefreshAll, useTransactions, useWalletState, type CardColor, type KashoCard } from "@/lib/queries";
+import { useConfig, useRefreshAll, useTransactions, useWalletState, type CardColor, type KashoCard } from "@/lib/queries";
+import { feeFor } from "@/lib/fees";
 import { CARD_COLOR_PRESETS } from "@/lib/card-colors";
 import { refreshSession, useSession } from "@/lib/session";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,10 +20,10 @@ import { status } from "@/components/kasho/status-modal";
 import { isCancelled, useStepUp } from "@/lib/stepup";
 import { useCardCode } from "@/components/kasho/card-code";
 import {
-  cardTransactionsFn, createCardFn, freezeCardFn, fundCardFn, getPublicConfig, revealCardFn,
+  cardTransactionsFn, createCardFn, freezeCardFn, fundCardFn, revealCardFn,
   syncCardFn, terminateCardFn, removeCardFn, updateCardFn, withdrawCardFn,
 } from "@/lib/api";
-import { errorMessage, usd } from "@/lib/format";
+import { cleanAmount, errorMessage, usd } from "@/lib/format";
 import type { Transaction } from "@/components/kasho/data";
 import { TransactionList } from "@/components/kasho/transactions-list";
 import { cn } from "@/lib/utils";
@@ -258,13 +259,13 @@ function CardPage() {
       </section>
       {cards.length > 1 && (
         <div className="mt-3 flex items-center justify-center gap-3">
-          <button type="button" aria-label="Previous card" className="grid h-8 w-8 place-items-center rounded-full border border-border" onClick={() => go(-1)}><ChevronLeft className="h-4 w-4" /></button>
+          <button type="button" aria-label="Previous card" className="grid h-11 w-11 place-items-center rounded-full border border-border" onClick={() => go(-1)}><ChevronLeft className="h-4 w-4" /></button>
           <div className="flex gap-1.5">
             {cards.map((c) => (
-              <button key={c.id} type="button" aria-label={c.label} onClick={() => setSelectedId(c.id)} className={cn("h-2 rounded-full transition-all", c.id === selected.id ? "w-5 bg-primary" : "w-2 bg-muted-foreground/40")} />
+              <button key={c.id} type="button" aria-label={c.label} onClick={() => setSelectedId(c.id)} className="grid h-11 min-w-6 place-items-center"><span className={cn("block h-2 rounded-full transition-all", c.id === selected.id ? "w-5 bg-primary" : "w-2 bg-muted-foreground/40")} /></button>
             ))}
           </div>
-          <button type="button" aria-label="Next card" className="grid h-8 w-8 place-items-center rounded-full border border-border" onClick={() => go(1)}><ChevronRight className="h-4 w-4" /></button>
+          <button type="button" aria-label="Next card" className="grid h-11 w-11 place-items-center rounded-full border border-border" onClick={() => go(1)}><ChevronRight className="h-4 w-4" /></button>
         </div>
       )}
       </div>
@@ -318,9 +319,13 @@ function MoveMoneyDialog({ mode, open, onOpenChange, card, walletBalance }: { mo
   const refresh = useRefreshAll();
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
+  const { data: config } = useConfig();
   const parsed = Number(amount);
-  const max = mode === "in" ? walletBalance : card.balance;
-  const valid = parsed > 0 && parsed <= max;
+  const feeOrNull = feeFor(config?.fees, mode === "in" ? "card_fund" : "card_withdraw", parsed);
+  const fee = feeOrNull ?? 0;
+  // Adding: the wallet pays amount + fee. Moving back: the fee is taken from the amount, so it must be larger than the fee.
+  const max = mode === "in" ? walletBalance - fee : card.balance;
+  const valid = parsed > 0 && feeOrNull !== null && parsed <= max && (mode === "in" || parsed > fee);
 
   const handleConfirm = async () => {
     if (!valid) return;
@@ -353,16 +358,28 @@ function MoveMoneyDialog({ mode, open, onOpenChange, card, walletBalance }: { mo
             <Label htmlFor="amount">Amount</Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-              <Input id="amount" inputMode="decimal" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
+              <Input id="amount" inputMode="decimal" autoComplete="off" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(cleanAmount(e.target.value))} />
             </div>
             <p className="text-xs text-muted-foreground">{mode === "in" ? `From wallet · ${usd(walletBalance)} available` : `On card · ${usd(card.balance)} available`}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {QUICK_AMOUNTS.map((v) => (
-              <Button key={v} type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setAmount(String(v))}>${v}</Button>
+              <Button key={v} type="button" variant="outline" size="sm" className="h-11 min-w-14 rounded-full px-4 text-sm" onClick={() => setAmount(String(v))}>${v}</Button>
             ))}
           </div>
-          {amount && !valid && <p className="text-xs text-destructive">{parsed > max ? "That is more than the available balance." : "Enter a valid amount."}</p>}
+          {parsed > 0 && feeOrNull !== null && (
+            <p className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium" role="status">
+              {mode === "in"
+                ? `Fee ${usd(fee)} · total taken from your wallet ${usd(parsed + fee)}`
+                : `Fee ${usd(fee)} · your wallet receives ${usd(Math.max(0, parsed - fee))}`}
+            </p>
+          )}
+          {amount && !valid && (
+            <p className="text-xs text-destructive">
+              {parsed > max ? (mode === "in" && parsed <= walletBalance ? "That is more than your wallet balance (fee included)." : "That is more than the available balance.")
+                : mode === "out" && parsed > 0 && parsed <= fee ? `The amount must be more than the ${usd(fee)} fee.` : "Enter a valid amount."}
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button className="h-11 w-full rounded-xl shadow-neon" disabled={!valid || busy} onClick={handleConfirm}>
@@ -393,7 +410,7 @@ function ColorPicker({ color, setColor }: { color: CardColor; setColor: (c: Card
 function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; walletBalance: number; onCreated: (id: string) => void }) {
   const refresh = useRefreshAll();
   const session = useSession();
-  const { data: config } = useQuery({ queryKey: ["config"], queryFn: () => getPublicConfig(), staleTime: 5 * 60_000 });
+  const { data: config } = useConfig();
   const [step, setStep] = useState(0);
   const [color, setColor] = useState<CardColor>("mint");
   const [brand, setBrand] = useState<"VISA" | "MASTERCARD">("VISA");
@@ -420,12 +437,13 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
   }, [open]);
 
   const parsed = Number(amount);
-  const fee = config?.cardCreationFeeUsd ?? 0;
+  const feeOrNull = feeFor(config?.fees, "card_creation", parsed);
+  const fee = feeOrNull ?? 0;
   const min = config?.minCardFundUsd ?? 1;
   const needsKyc = (config?.requireKycForCards ?? false) && session?.profile?.kyc_status !== "verified";
   const steps = [...(askContact ? ["details"] : []), "network", "prefund", "design"] as const;
   const current = steps[Math.min(step, steps.length - 1)]!;
-  const amountOk = parsed >= min && parsed + fee <= walletBalance;
+  const amountOk = parsed >= min && feeOrNull !== null && parsed + fee <= walletBalance;
   const canNext = current === "details" ? contactOk : current === "prefund" ? amountOk : true;
   const last = step >= steps.length - 1;
 
@@ -526,11 +544,12 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
               <Label htmlFor="card-amount">Prefund amount (USD)</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-                <Input id="card-amount" inputMode="decimal" className="h-12 rounded-xl pl-7 text-lg" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
+                <Input id="card-amount" inputMode="decimal" className="h-12 rounded-xl pl-7 text-lg" value={amount} onChange={(e) => setAmount(cleanAmount(e.target.value))} />
               </div>
               <p className="text-xs text-muted-foreground">
-                Taken from your wallet ({usd(walletBalance)} available){fee > 0 ? ` plus a ${usd(fee)} creation fee` : ""}.
+                {`Taken from your wallet (${usd(walletBalance)} available)${fee > 0 ? ` plus a ${usd(fee)} card creation fee` : ""}.`}
               </p>
+              {parsed > 0 && feeOrNull !== null && <p className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium" role="status">{`Fee ${usd(fee)} · total taken from your wallet ${usd(parsed + fee)}`}</p>}
               {amount && parsed + fee > walletBalance && <p className="text-xs text-destructive">Not enough balance in your wallet.</p>}
               {amount && parsed < min && <p className="text-xs text-destructive">Minimum prefund is ${min}.</p>}
             </div>
@@ -669,9 +688,7 @@ function TerminateCardDialog({ open, onOpenChange, card }: { open: boolean; onOp
       status.success("Card terminated", r.refunded > 0 ? `${usd(r.refunded)} returned to your wallet.` : undefined);
       void refresh();
     } catch (e) {
-      const msg = errorMessage(e);
-      setError(msg);
-      status.error(msg);
+      status.error(errorMessage(e));
       void refresh();
     } finally {
       setBusy(false);

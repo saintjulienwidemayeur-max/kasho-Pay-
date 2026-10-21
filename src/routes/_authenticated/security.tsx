@@ -75,8 +75,7 @@ function SecurityPage() {
     setBusy(true);
     try {
       // Password (and 2FA code if enabled) is re-checked by the server before the change.
-      const currentPassword = await stepUp.ask();
-      await changePassword({ data: { currentPassword, newPassword: next } });
+      await stepUp.ask((currentPassword) => changePassword({ data: { currentPassword, newPassword: next } }));
       toast.success("Password updated");
       setNext(""); setConfirm("");
     } catch (e) {

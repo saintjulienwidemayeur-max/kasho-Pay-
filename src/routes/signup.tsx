@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/kasho/auth-layout";
+import { PasswordStrength } from "@/components/kasho/password-strength";
 import { cn } from "@/lib/utils";
 import { COUNTRIES } from "@/lib/countries";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -53,6 +54,7 @@ function SignupPage() {
 
   // Step 3
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
@@ -90,6 +92,7 @@ function SignupPage() {
 
   const handleCreateAccount = async () => {
     if (password.length < 8) return toast.error("Password must be at least 8 characters");
+    if (password !== confirmPassword) return toast.error("Passwords don't match");
     if (!agreed) return toast.error("Please agree to the Terms and Privacy Policy");
 
     setLoading(true);
@@ -177,7 +180,7 @@ function SignupPage() {
           </div>
           <h1 className="mt-6 text-center text-2xl font-semibold">Verify your email</h1>
           <p className="mt-2 text-center text-sm text-muted-foreground">
-            We sent a verification email to <span className="text-foreground">{email}</span>. Open it and tap the link, then come back here.
+            We sent a verification email to <span className="text-foreground">{email}.</span> Open it and tap the link, then come back here.
           </p>
 
           <Button className="mt-8 h-12 w-full rounded-xl shadow-neon" disabled={loading} onClick={checkVerified}>
@@ -206,7 +209,7 @@ function SignupPage() {
 
         <div className="mb-6 text-center lg:text-left">
           <h1 className="text-2xl font-semibold">Create your account</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Step {step} of 3 · {STEPS[step - 1]}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{`Step ${step} of 3 · ${STEPS[step - 1]}`}</p>
         </div>
 
         <div className="mb-7 flex gap-2">
@@ -294,11 +297,31 @@ function SignupPage() {
                   className="h-11 rounded-xl pl-10 pr-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  aria-describedby="pw-strength"
                 />
-                <button type="button" onClick={() => setShowPassword((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-label={showPassword ? "Hide password" : "Show password"}>
+                <button type="button" onClick={() => setShowPassword((s) => !s)} className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center text-muted-foreground" aria-label={showPassword ? "Hide password" : "Show password"}>
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              <PasswordStrength id="pw-strength" password={password} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  className="h-11 rounded-xl pl-10"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  aria-invalid={confirmPassword.length > 0 && confirmPassword !== password}
+                  aria-describedby={confirmPassword && confirmPassword !== password ? "pw-mismatch" : undefined}
+                />
+              </div>
+              {confirmPassword.length > 0 && confirmPassword !== password && <p id="pw-mismatch" role="alert" className="text-xs text-destructive">Passwords don't match</p>}
             </div>
 
             <p className="text-xs text-muted-foreground">We will email you a link to verify your address before you can log in.</p>

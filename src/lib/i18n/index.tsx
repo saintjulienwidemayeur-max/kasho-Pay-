@@ -36,8 +36,19 @@ const DATE_RE = /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{1,2})(.*
 const missing = new Set<string>();
 const debug = () => typeof location !== "undefined" && /[?&]i18n-debug=1/.test(location.search);
 
-/** French text for an English UI string, or null when there is nothing to change. */
+/** "$1,310.50" -> "1 310,50 $" (French money format), applied to every translated or untranslated text. */
+export function frenchMoney(s: string): string {
+  return s.replace(/\$(\d[\d,]*)(?:\.(\d+))?/g, (_, whole: string, frac?: string) =>
+    `${whole.replace(/,/g, "\u202f")}${frac ? `,${frac}` : ""}\u00a0$`);
+}
+
+/** French text for an English UI string (amounts in French format), or null when there is nothing to change. */
 export function toFrench(text: string): string | null {
+  const out = frenchMoney(translateText(text) ?? text);
+  return out !== text ? out : null;
+}
+
+function translateText(text: string): string | null {
   const lead = /^\s*/.exec(text)![0];
   const trail = /\s*$/.exec(text)![0];
   const core = norm(text.trim());
@@ -81,6 +92,19 @@ export function toFrench(text: string): string | null {
   return null;
 }
 
+// React puts a "__reactFiber$..." property on every DOM element it has hydrated or created. Server-rendered elements
+// that React has not reached yet (selective hydration of Suspense boundaries) do not have it, and changing their text
+// before React compares it with the client render is what caused "Hydration failed" in French.
+const hydrated = new WeakSet<Element>();
+function isHydrated(el: Element | null): boolean {
+  if (!el) return false;
+  if (hydrated.has(el)) return true;
+  for (const k in el) {
+    if (k.startsWith("__reactFiber$")) { hydrated.add(el); return true; }
+  }
+  return false;
+}
+
 const ATTRS = ["placeholder", "title", "aria-label", "alt"] as const;
 const SKIP = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "CODE"]);
 
@@ -93,10 +117,12 @@ export function I18nRuntime() {
     const origText = new WeakMap<Node, { en: string; shown: string }>();
     const origAttr = new WeakMap<Element, Record<string, { en: string; shown: string }>>();
     const touched = new Set<Node>();
+    let deferred = false; // some nodes were skipped because React has not hydrated them yet
 
     const doText = (n: Node) => {
       const parent = n.parentElement;
       if (!parent || SKIP.has(parent.tagName) || parent.closest("[data-no-i18n]")) return;
+      if (!isHydrated(parent)) { deferred = true; return; }
       const cur = n.nodeValue ?? "";
       const rec = origText.get(n);
       // If React wrote a new value, that value is the new English original.
@@ -112,6 +138,7 @@ export function I18nRuntime() {
     };
     const doAttrs = (el: Element) => {
       if (el.closest("[data-no-i18n]")) return;
+      if (!isHydrated(el)) { deferred = true; return; }
       for (const a of ATTRS) {
         const cur = el.getAttribute(a);
         if (!cur) continue;
@@ -143,7 +170,16 @@ export function I18nRuntime() {
 
     if (lang !== "fr") return;
 
-    walk(document.documentElement);
+    // Translate only after the page has hydrated: retry while React is still hydrating (max ~10 s).
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const started = Date.now();
+    const pass = () => {
+      deferred = false;
+      obs.disconnect();
+      walk(document.documentElement);
+      attach();
+      if (deferred && Date.now() - started < 10_000) retry = setTimeout(pass, 80);
+    };
     const obs = new MutationObserver((muts) => {
       obs.disconnect();
       for (const m of muts) {
@@ -156,9 +192,11 @@ export function I18nRuntime() {
     const attach = () => obs.observe(document.documentElement, {
       childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: [...ATTRS],
     });
+    retry = setTimeout(pass, 0);
     attach();
 
     return () => {
+      clearTimeout(retry);
       obs.disconnect();
       // Back to English: restore every node we changed.
       touched.forEach((n) => {

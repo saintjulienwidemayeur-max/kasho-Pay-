@@ -1,6 +1,23 @@
 // English -> French dictionary. Keys are the exact English UI strings.
 // Missing a translation? Add the English text as key. Open the app with ?i18n-debug=1 to list untranslated strings in the console.
 export const FR: Record<string, string> = {
+  // Countries (signup list)
+  "Haiti": "Haïti", "United States": "États-Unis", "Dominican Republic": "République dominicaine", "Brazil": "Brésil", "Chile": "Chili",
+  "Mexico": "Mexique", "United Kingdom": "Royaume-Uni", "Belgium": "Belgique", "Switzerland": "Suisse", "Spain": "Espagne",
+  "Germany": "Allemagne", "Italy": "Italie", "French Guiana": "Guyane française", "Jamaica": "Jamaïque", "Nigeria": "Nigéria",
+  "Senegal": "Sénégal", "Cote d'Ivoire": "Côte d'Ivoire",
+  // Filters, balances, 2FA prompt, password strength
+  "All": "Tous", "Transfers": "Transferts", "Available balance · test mode": "Solde disponible · mode test",
+  "Name, email, ID or phone": "Nom, e-mail, ID ou tél.",
+  "MonCash phone number": "Numéro de téléphone MonCash", "NatCash phone number": "Numéro de téléphone NatCash",
+  "Wrong password. Try again.": "Mot de passe incorrect. Réessayez.",
+  "Enter your 2FA code": "Saisissez votre code 2FA", "Open your authenticator app and enter the 6-digit code to continue.": "Ouvrez votre application d'authentification et saisissez le code à 6 chiffres pour continuer.",
+  "2FA is required.": "La 2FA est requise.",
+  "Use at least 8 characters. Mix letters, numbers and symbols for a stronger password.": "Utilisez au moins 8 caractères. Mélangez lettres, chiffres et symboles pour un mot de passe plus solide.",
+  "Password strength:": "Solidité du mot de passe :", "Too short": "Trop court", "Weak": "Faible", "OK": "Correct", "Strong": "Fort",
+  "Already have an account?": "Vous avez déjà un compte ?", "Don't have an account?": "Vous n'avez pas de compte ?", "Already verified?": "Déjà vérifié ?",
+  "Review transfer": "Vérifier le transfert", "MonCash phone number (optional)": "Numéro de téléphone MonCash (facultatif)",
+  "NatCash phone number (optional)": "Numéro de téléphone NatCash (facultatif)", "We sent a verification email to": "Nous avons envoyé un e-mail de vérification à",
   "Your details": "Vos informations",
   "The card service needs a few details. We create your card holder automatically.": "Le service de cartes a besoin de quelques informations. Nous créons automatiquement votre titulaire de carte.",
   "Choose a network": "Choisissez un réseau",
@@ -158,14 +175,20 @@ export const FR: Record<string, string> = {
   // transfer
   "Send money": "Envoyer de l'argent", "Receive money": "Recevoir de l'argent", "Choose recipient": "Choisir le destinataire",
   "No Kasho user found.": "Aucun utilisateur Kasho trouvé.", "Sending to": "Envoi à", "Search for a recipient above.": "Recherchez un destinataire ci-dessus.",
-  "USD · $": "USD · $", "Kasho transfer": "Transfert Kasho", "Instant · Free": "Instantané · Gratuit", "Copy link": "Copier le lien", "Share QR": "Partager le QR",
+  "USD · $": "USD · $", "Kasho transfer": "Transfert Kasho", "Instant · Free": "Instantané · Gratuit", "Instant": "Instantané", "We cannot calculate the fee for this amount.": "Impossible de calculer les frais pour ce montant.",
+  "Choose a recipient to continue.": "Choisissez un destinataire pour continuer.", "Enter an amount to continue.": "Saisissez un montant pour continuer.",
+  "You will be asked for your password to confirm. This cannot be undone.": "Votre mot de passe vous sera demandé pour confirmer. Cette action est irréversible.",
+  "Search for a recipient": "Rechercher un destinataire", "Copy link": "Copier le lien", "Share QR": "Partager le QR",
   "Confirm transfer": "Confirmer le transfert", "Review your payment before sending.": "Vérifiez votre paiement avant l'envoi.",
   "Money sent": "Argent envoyé", "Done": "Terminé", "Send & Receive Money | Kasho Pay": "Envoyer et recevoir | Kasho Pay",
   "Send or receive money instantly with Kasho Pay.": "Envoyez ou recevez de l'argent instantanément avec Kasho Pay.",
   "Search by @username": "Rechercher par @nom d'utilisateur", "Add a note (optional)": "Ajouter une note (facultatif)",
   "Kasho Pay QR code": "Code QR Kasho Pay", "We could not find that Kasho user.": "Nous n'avons pas trouvé cet utilisateur Kasho.",
   "Payment link copied": "Lien de paiement copié", "Transfer completed": "Transfert effectué", "Send again": "Envoyer à nouveau",
-  "More than your balance": "Plus que votre solde", "Delete digit": "Effacer un chiffre", "Confirm and send": "Confirmer et envoyer", "Scan to pay": "Scanner pour payer",
+  "More than your balance": "Plus que votre solde", "More than your balance (fee included)": "Plus que votre solde (frais inclus)",
+  "No fee is defined for that amount. Please try a different amount.": "Aucun frais n'est défini pour ce montant. Essayez un autre montant.",
+  "Fees are temporarily unavailable. Please try again later.": "Les frais sont temporairement indisponibles. Réessayez plus tard.",
+  "That amount is too small to cover the fee.": "Ce montant est trop petit pour couvrir les frais.", "Delete digit": "Effacer un chiffre", "Confirm and send": "Confirmer et envoyer", "Scan to pay": "Scanner pour payer",
 
   // KYC
   "You're verified": "Vous êtes vérifié", "Your identity has been confirmed. You have full access to Kasho Pay.": "Votre identité a été confirmée. Vous avez un accès complet à Kasho Pay.",
@@ -318,6 +341,22 @@ export const MONTHS_FR: Record<string, string> = {
 
 // Dynamic strings: [regex, replacement]. $1... are the captured parts (amounts, names stay as they are).
 export const PATTERNS: [RegExp, string][] = [
+  [/^You pay about (.+) HTG \(rate: (.+) HTG per \$1\)\.$/, "Vous payez environ $1 HTG (taux : $2 HTG pour 1 $)."],
+  [/^Kasho ID · (.+)$/, "ID Kasho · $1"],
+  [/^Step (\d+) of (\d+) · (.+)$/, "Étape $1 sur $2 · $3"],
+  [/^Wallet available · (.+)$/, "Disponible dans le portefeuille · $1"],
+  // Fees (KASHOPAY LLC billing). More specific than the generic patterns below, so they come first.
+  [/^Instant · Fee (\$[\d.,]+) · total (\$[\d.,]+)$/, "Instantané · Frais $1 · total $2"],
+  [/^Fee (\$[\d.,]+) · your wallet receives (\$[\d.,]+)$/, "Frais $1 · votre portefeuille reçoit $2"],
+  [/^Fee (\$[\d.,]+) · total taken from your wallet (\$[\d.,]+) · you receive about (.+) HTG$/, "Frais $1 · total prélevé sur votre portefeuille $2 · vous recevez environ $3 HTG"],
+  [/^Fee (\$[\d.,]+) · total taken from your wallet (\$[\d.,]+)$/, "Frais $1 · total prélevé sur votre portefeuille $2"],
+  [/^Taken from your wallet \((.+) available\) plus a (.+) card creation fee\.$/, "Prélevé sur votre portefeuille ($1 disponible) plus des frais de création de carte de $2."],
+  [/^Taken from your wallet \((.+) available\)\.$/, "Prélevé sur votre portefeuille ($1 disponible)."],
+  [/^Maximum deposit is (.+)\.$/, "Le dépôt maximum est de $1."],
+  [/^Maximum withdrawal is (.+)\.$/, "Le retrait maximum est de $1."],
+  [/^The amount must be more than the (.+) fee\.$/, "Le montant doit être supérieur aux frais de $1."],
+  [/^The amount must be between (.+) and (.+)\.$/, "Le montant doit être compris entre $1 et $2."],
+  [/^(\$[\d.,]+) sent to (.+) \(fee (\$[\d.,]+)\)$/, "$1 envoyés à $2 (frais : $3)"],
   [/^Welcome to Kasho Pay, (.+)!$/, "Bienvenue sur Kasho Pay, $1 !"],
   [/^Good to see you, (.+)$/, "Content de vous voir, $1"],
   [/^Welcome back, (.+)$/, "Content de vous revoir, $1"],
@@ -348,7 +387,7 @@ export const PATTERNS: [RegExp, string][] = [
   [/^Verification email sent to (.+)$/, "E-mail de vérification envoyé à $1"],
   [/^Resend email in (\d+)s$/, "Renvoyer l'e-mail dans $1 s"],
   [/^Reference (KYC-\d+)$/, "Référence $1"],
-  [/^Minimum prefund is \$(.+)\.$/, "Le préfinancement minimum est de $$$1."],
+  [/^Minimum prefund is \$(.+)\.$/, "Le préfinancement minimum est de $$1."],
   [/^Step (\d+) of (\d+)$/, "Étape $1 sur $2"],
   [/^Pay (.+) on Kasho$/, "Payer $1 sur Kasho"],
   [/^Minimum deposit is (.+)\.$/, "Le dépôt minimum est de $1."],

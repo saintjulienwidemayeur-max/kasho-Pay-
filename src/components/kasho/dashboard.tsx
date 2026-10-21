@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowDownToLine, ArrowUpRight, ExternalLink, Loader2, Plus, ShieldCheck, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { TransactionList } from "./transactions-list";
@@ -10,18 +9,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { greetingName, useSession } from "@/lib/session";
-import { useRefreshAll, useTransactions, useWalletState } from "@/lib/queries";
-import { getPublicConfig, startDeposit, startWithdrawal, syncTransaction } from "@/lib/api";
-import { errorMessage, usd } from "@/lib/format";
+import { useConfig, useRefreshAll, useTransactions, useWalletState } from "@/lib/queries";
+import { startDeposit, startWithdrawal, syncTransaction } from "@/lib/api";
+import { feeFor } from "@/lib/fees";
+import { cleanAmount, errorMessage, fmtNum, usd } from "@/lib/format";
+import { useLang } from "@/lib/i18n";
 import { status } from "@/components/kasho/status-modal";
 import { isCancelled, useStepUp } from "@/lib/stepup";
 import { cn } from "@/lib/utils";
 
 const QUICK_AMOUNTS = [5, 20, 50, 100];
-
-function useConfig() {
-  return useQuery({ queryKey: ["config"], queryFn: () => getPublicConfig(), staleTime: 5 * 60_000 });
-}
 
 export function DashboardPage() {
   const [selected, setSelected] = useState<Transaction | null>(null);
@@ -58,7 +55,7 @@ export function DashboardPage() {
         <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs text-muted-foreground">Available balance{config?.sandbox ? " · test mode" : ""}</p>
+            <p className="text-xs text-muted-foreground">{`Available balance${config?.sandbox ? " · test mode" : ""}`}</p>
             <p className="mt-2 text-4xl font-semibold sm:text-5xl">{usd(walletBalance)}</p>
             <p className="mt-3 flex items-center gap-2 text-xs text-primary">
               <ShieldCheck className="h-3.5 w-3.5" /> Protected account
@@ -106,8 +103,9 @@ function ProviderPicker({ provider, setProvider }: { provider: MobileMoneyProvid
         <button
           key={id}
           type="button"
+          aria-pressed={provider === id}
           onClick={() => setProvider(id)}
-          className={cn("flex items-center gap-3 rounded-xl border p-3 text-left transition", provider === id ? "border-primary bg-primary/10" : "border-border hover:bg-secondary")}
+          className={cn("flex min-h-12 items-center gap-3 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", provider === id ? "border-primary bg-primary/10" : "border-border hover:bg-secondary")}
         >
           <Badge className="h-9 w-9 shrink-0 rounded-lg" />
           <span className="text-sm font-medium">{name}</span>
@@ -121,12 +119,13 @@ function AmountField({ id, amount, setAmount }: { id: string; amount: string; se
   return (
     <div className="relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-      <Input id={id} inputMode="decimal" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
+      <Input id={id} inputMode="decimal" autoComplete="off" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(cleanAmount(e.target.value))} />
     </div>
   );
 }
 
 function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const lang = useLang();
   const refresh = useRefreshAll();
   const { data: config } = useConfig();
   const [provider, setProvider] = useState<MobileMoneyProvider>("moncash");
@@ -138,9 +137,12 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
 
   const parsed = Number(amount);
   const min = config?.minDepositUsd ?? 1;
+  const max = config?.maxDepositUsd ?? null;
+  const fee = feeFor(config?.fees, "wallet_deposit", parsed);
   const providerName = MOBILE_MONEY_PROVIDERS.find((p) => p.id === provider)!.name;
   const htg = config ? Math.ceil(parsed * config.htgPerUsd) : 0;
-  const valid = parsed >= min && (provider === "natcash" || phone.trim().length === 0 || phone.replace(/\D/g, "").length >= 8);
+  const phoneBad = provider === "moncash" && phone.trim().length > 0 && phone.replace(/\D/g, "").length < 8;
+  const valid = parsed >= min && (max === null || parsed <= max) && fee !== null && fee < parsed && (provider === "natcash" || !phoneBad);
 
   const reset = () => { setWaiting(null); setAmount(""); setPhone(""); settled.current = false; };
 
@@ -152,15 +154,15 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
     const timer = setInterval(async () => {
       tries += 1;
       try {
-        const { status } = await syncTransaction({ data: { transactionId: waiting.id } });
+        const res = await syncTransaction({ data: { transactionId: waiting.id } });
         if (settled.current) return;
-        if (status === "completed") {
+        if (res.status === "completed") {
           settled.current = true;
           status.success("Payment received", "Your wallet was credited.");
           void refresh();
           reset();
           onOpenChange(false);
-        } else if (status === "failed") {
+        } else if (res.status === "failed") {
           settled.current = true;
           status.error("The payment did not go through.", "Payment failed");
           void refresh();
@@ -180,11 +182,14 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
       status.processing("Starting your payment...");
       const res = await startDeposit({ data: { provider, amountUsd: parsed, phone: phone.trim() || undefined } });
       status.close();
-      setWaiting({ id: res.transactionId, url: res.checkoutUrl, ussd: res.ussd });
-      if (res.checkoutUrl) window.open(res.checkoutUrl, "_blank", "noopener");
+      // Only open real https pages (never javascript: or data: links).
+      const checkoutUrl = res.checkoutUrl && /^https:\/\//i.test(res.checkoutUrl) ? res.checkoutUrl : null;
+      setWaiting({ id: res.transactionId, url: checkoutUrl, ussd: res.ussd });
+      if (checkoutUrl) window.open(checkoutUrl, "_blank", "noopener");
       void refresh();
     } catch (e) {
-      status.error(errorMessage(e));
+      if (isCancelled(e)) status.close();
+      else status.error(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -210,7 +215,7 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                 <a href={waiting.url} target="_blank" rel="noopener noreferrer"><ExternalLink /> Open payment page</a>
               </Button>
             )}
-            <button className="block w-full text-xs text-muted-foreground hover:text-foreground" onClick={() => { reset(); onOpenChange(false); }}>
+            <button className="block min-h-11 w-full text-xs text-muted-foreground hover:text-foreground" onClick={() => { reset(); onOpenChange(false); }}>
               Close (the payment keeps being tracked in your history)
             </button>
           </div>
@@ -220,8 +225,9 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
               <ProviderPicker provider={provider} setProvider={setProvider} />
 
               <div className="space-y-2">
-                <Label htmlFor="mm-phone">{providerName} phone number{provider === "natcash" ? " (optional)" : ""}</Label>
-                <Input id="mm-phone" inputMode="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Label htmlFor="mm-phone">{`${providerName} phone number (optional)`}</Label>
+                <Input id="mm-phone" inputMode="tel" autoComplete="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} aria-invalid={phoneBad} />
+                {phoneBad && <p className="text-xs text-destructive">Enter a valid phone number</p>}
                 <p className="text-xs text-muted-foreground">
                   {provider === "moncash" && phone.trim()
                     ? "You will get a MonCash prompt on this phone."
@@ -234,13 +240,19 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                 <AmountField id="mm-amount" amount={amount} setAmount={setAmount} />
                 <div className="flex flex-wrap gap-2">
                   {QUICK_AMOUNTS.map((v) => (
-                    <Button key={v} type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setAmount(String(v))}>${v}</Button>
+                    <Button key={v} type="button" variant="outline" size="sm" className="h-11 min-w-14 rounded-full px-4 text-sm" onClick={() => setAmount(String(v))}>${v}</Button>
                   ))}
                 </div>
                 {parsed > 0 && config && (
-                  <p className="text-xs text-muted-foreground">You pay about {htg.toLocaleString()} HTG (rate: {config.htgPerUsd} HTG per $1).</p>
+                  <p className="text-xs text-muted-foreground">{`You pay about ${fmtNum(htg, lang)} HTG (rate: ${fmtNum(config.htgPerUsd, lang)} HTG per $1).`}</p>
                 )}
+                {parsed > 0 && fee !== null && (
+                  <p className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium" role="status">{`Fee ${usd(fee)} · your wallet receives ${usd(Math.max(0, parsed - fee))}`}</p>
+                )}
+                {parsed > 0 && fee !== null && fee >= parsed && <p className="text-xs text-destructive">{`The amount must be more than the ${usd(fee)} fee.`}</p>}
+                {parsed > 0 && config && fee === null && parsed >= min && (max === null || parsed <= max) && <p className="text-xs text-destructive">We cannot calculate the fee for this amount.</p>}
                 {amount && parsed < min && <p className="text-xs text-destructive">Minimum deposit is ${min}.</p>}
+                {amount && max !== null && parsed > max && <p className="text-xs text-destructive">Maximum deposit is ${max}.</p>}
               </div>
             </div>
 
@@ -257,6 +269,7 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
 }
 
 function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; onOpenChange: (v: boolean) => void; walletBalance: number }) {
+  const lang = useLang();
   const refresh = useRefreshAll();
   const stepUp = useStepUp();
   const { data: config } = useConfig();
@@ -265,20 +278,20 @@ function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; 
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const parsed = Number(amount);
-  const feePct = config?.withdrawFeePercent ?? 0;
-  const fee = Math.round(parsed * feePct) / 100;
+  const feeOrNull = feeFor(config?.fees, "wallet_withdrawal", parsed);
+  const fee = feeOrNull ?? 0;
   const total = parsed + fee;
   const min = config?.minWithdrawUsd ?? 1;
-  const valid = parsed >= min && total <= walletBalance && phone.replace(/\D/g, "").length >= 8;
+  const max = config?.maxWithdrawUsd ?? null;
+  const valid = parsed >= min && (max === null || parsed <= max) && feeOrNull !== null && total <= walletBalance && phone.replace(/\D/g, "").length >= 8;
   const providerName = MOBILE_MONEY_PROVIDERS.find((p) => p.id === provider)!.name;
 
   const handleConfirm = async () => {
     if (!valid) return;
     setBusy(true);
     try {
-      const confirmPassword = await stepUp.ask();
-      status.processing("Sending your withdrawal...");
-      await startWithdrawal({ data: { provider, amountUsd: parsed, phone, confirmPassword } });
+      // The dialog stays open while the server checks the password: a wrong one is shown inline, not as a failure.
+      await stepUp.ask((confirmPassword) => startWithdrawal({ data: { provider, amountUsd: parsed, phone, confirmPassword } }));
       status.success("Withdrawal submitted", `${usd(parsed)} to ${providerName}. You will get a confirmation on your phone.`);
       void refresh();
       setAmount(""); setPhone("");
@@ -304,22 +317,25 @@ function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; 
           <ProviderPicker provider={provider} setProvider={setProvider} />
 
           <div className="space-y-2">
-            <Label htmlFor="wd-phone">{providerName} phone number</Label>
-            <Input id="wd-phone" inputMode="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Label htmlFor="wd-phone">{`${providerName} phone number`}</Label>
+            <Input id="wd-phone" inputMode="tel" autoComplete="tel" placeholder="+509 3xxx xxxx" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} aria-invalid={phone.trim().length > 0 && phone.replace(/\D/g, "").length < 8} />
+            {phone.trim().length > 0 && phone.replace(/\D/g, "").length < 8 && <p className="text-xs text-destructive">Enter a valid phone number</p>}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="wd-amount">Amount (USD)</Label>
             <AmountField id="wd-amount" amount={amount} setAmount={setAmount} />
-            <p className="text-xs text-muted-foreground">Wallet available · {usd(walletBalance)}</p>
-            {parsed > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Fee {feePct}% = {usd(fee)} · total taken from your wallet {usd(total)}
-                {config ? ` · you receive about ${Math.floor(parsed * config.htgPerUsd).toLocaleString()} HTG` : ""}
+            <p className="text-xs text-muted-foreground">{`Wallet available · ${usd(walletBalance)}`}</p>
+            {parsed > 0 && feeOrNull !== null && (
+              <p className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium" role="status">
+                {`Fee ${usd(fee)} · total taken from your wallet ${usd(total)}${config ? ` · you receive about ${fmtNum(Math.floor(parsed * config.htgPerUsd), lang)} HTG` : ""}`}
               </p>
             )}
+            {parsed > 0 && config && feeOrNull === null && parsed >= min && (max === null || parsed <= max) && <p className="text-xs text-destructive">We cannot calculate the fee for this amount.</p>}
+            <p className="text-xs text-muted-foreground">You will be asked for your password to confirm. This cannot be undone.</p>
             {amount && total > walletBalance && <p className="text-xs text-destructive">That is more than your wallet balance (fee included).</p>}
             {amount && parsed > 0 && parsed < min && <p className="text-xs text-destructive">Minimum withdrawal is ${min}.</p>}
+            {amount && max !== null && parsed > max && <p className="text-xs text-destructive">Maximum withdrawal is ${max}.</p>}
           </div>
         </div>
 

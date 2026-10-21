@@ -1,6 +1,21 @@
 // Client for the Kasho Pay backend (separate project, see kasho-pay-backend).
 // Every call sends the Supabase access token; the backend verifies it.
 import { supabase } from "@/integrations/supabase/client";
+import type { FeeRule } from "@/lib/fees";
+import { canPromptMfa, requestMfa } from "@/lib/mfa-gate";
+
+/** Error from the Kasho backend. `code` is the machine-readable reason (MFA_REQUIRED, PASSWORD_INVALID...). */
+export class ApiError extends Error {
+  code: string | undefined;
+  status: number;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+export const errorCode = (e: unknown): string | undefined => (e as { code?: string } | null)?.code;
 
 // If the app is opened from another device on the same Wi-Fi (e.g. http://192.168.1.155:5173),
 // "localhost" would point to that device, so use the same host as the page with the backend port.
@@ -14,7 +29,7 @@ function apiUrl(): string {
   return (env ?? "http://localhost:4000").replace(/\/+$/, "");
 }
 
-async function call<T>(name: string, body: unknown = {}): Promise<T> {
+async function call<T>(name: string, body: unknown = {}, retriedAfterMfa = false): Promise<T> {
   const { data: sess } = await supabase.auth.getSession();
   const token = sess.session?.access_token;
   let res: Response;
@@ -43,8 +58,14 @@ async function call<T>(name: string, body: unknown = {}): Promise<T> {
     /* empty or non-JSON body */
   }
   if (!res.ok) {
+    const code: string | undefined = typeof json?.error?.code === "string" ? json.error.code : undefined;
+    // 2FA is on but this session has not passed it: ask for the authenticator code, then retry the request once.
+    if (res.status === 403 && code === "MFA_REQUIRED" && !retriedAfterMfa && canPromptMfa()) {
+      await requestMfa(); // throws Error("cancelled") when the user closes the prompt
+      return call<T>(name, body, true);
+    }
     if (res.status === 401) void supabase.auth.signOut();
-    throw new Error(json?.error?.message ?? (json ? "Something went wrong. Please try again." : `The server did not answer correctly (HTTP ${res.status}). Please try again in a moment.`));
+    throw new ApiError(json?.error?.message ?? (json ? "Something went wrong. Please try again." : `The server did not answer correctly (HTTP ${res.status}). Please try again in a moment.`), res.status, code);
   }
   return json.data as T;
 }
@@ -53,8 +74,8 @@ type Arg<T> = { data: T };
 type CardColor = "mint" | "sunset" | "ocean" | "gold" | "midnight" | "forest" | "chrome";
 
 export type PublicConfig = {
-  htgPerUsd: number; withdrawFeePercent: number; cardCreationFeeUsd: number; minDepositUsd: number;
-  minWithdrawUsd: number; minCardFundUsd: number; requireKycForCards: boolean; sandbox: boolean;
+  htgPerUsd: number; fees: FeeRule[]; minDepositUsd: number; maxDepositUsd: number | null;
+  minWithdrawUsd: number; maxWithdrawUsd: number | null; minCardFundUsd: number; requireKycForCards: boolean; sandbox: boolean;
 };
 export type CardTx = { id: string; title: string; type: string; amount: number; status: string; createdAt: string };
 
@@ -65,15 +86,15 @@ export const createKycSession = () => call<{ url: string; reference: string }>("
 export const syncKyc = () => call<{ status: "unverified" | "pending" | "verified" | "rejected" }>("syncKyc", {});
 
 export const startDeposit = (a: Arg<{ provider: "moncash" | "natcash"; amountUsd: number; phone?: string | undefined }>) =>
-  call<{ transactionId: string; checkoutUrl: string | null; amountHtg: number; ussd: boolean }>("startDeposit", a.data);
+  call<{ transactionId: string; checkoutUrl: string | null; amountHtg: number; ussd: boolean; fee: number }>("startDeposit", a.data);
 export const syncTransaction = (a: Arg<{ transactionId: string }>) =>
   call<{ status: "pending" | "completed" | "failed" }>("syncTransaction", a.data);
 export const startWithdrawal = (a: Arg<{ provider: "moncash" | "natcash"; amountUsd: number; phone: string; confirmPassword: string }>) =>
   call<{ transactionId: string; status: "pending"; fee: number }>("startWithdrawal", a.data);
 
 export const searchUsers = (a: Arg<{ q: string }>) => call<{ username: string; name: string; kashoId?: string; email?: string }[]>("searchUsers", a.data);
-export const sendMoney = (a: Arg<{ username: string; amountUsd: number; note?: string | undefined }>) =>
-  call<{ reference: string; recipient: string }>("sendMoney", a.data);
+export const sendMoney = (a: Arg<{ username: string; amountUsd: number; note?: string | undefined; idempotencyKey?: string | undefined }>) =>
+  call<{ reference: string; recipient: string; fee: number }>("sendMoney", a.data);
 
 export type CardHolderInput = {
   firstName: string; lastName: string; email: string; dob: string; country: string; idNumber: string;
@@ -99,7 +120,8 @@ export const fileDisputeFn = (a: Arg<{ transactionRef: string; reason: string; n
 export const sendSupportMessage = (a: Arg<{ message: string }>) => call<{ ok: boolean }>("sendSupportMessage", a.data);
 
 export const changePassword = (a: Arg<{ currentPassword: string; newPassword: string }>) => call<{ ok: boolean }>("changePassword", a.data);
-export const getIdentity = () => call<{ idNumber: string }>("getIdentity", {});
+// Needs the password (step-up): ask for it with useStepUp().ask() and pass it as confirmPassword.
+export const getIdentity = (a: Arg<{ confirmPassword: string }>) => call<{ idNumber: string }>("getIdentity", a.data);
 export const changeEmail = (a: Arg<{ currentPassword: string; newEmail: string }>) => call<{ ok: boolean }>("changeEmail", a.data);
 
 export const setCardCode = (a: Arg<{ currentPassword: string; code: string }>) =>

@@ -2,6 +2,7 @@
 // behind a real Supabase session, and wraps them in the app shell.
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/components/kasho/shell";
+import { MfaPrompt } from "@/components/kasho/mfa-prompt";
 import { getSession, loadSession } from "@/lib/session";
 
 const SIGN_IN_ROUTE = "/welcome";
@@ -14,8 +15,11 @@ export const Route = createFileRoute("/_authenticated")({
     return { user: session };
   },
   component: () => (
-    <AppShell>
-      <Outlet />
-    </AppShell>
+    <>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+      <MfaPrompt />
+    </>
   ),
 });

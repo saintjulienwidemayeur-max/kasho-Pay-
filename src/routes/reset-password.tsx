@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/kasho/auth-layout";
+import { PasswordStrength } from "@/components/kasho/password-strength";
 import { verifiedTotpFactor } from "@/lib/stepup";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -49,7 +50,7 @@ function ResetPasswordPage() {
 
   return (
     <AuthLayout>
-      <form className="w-full max-w-sm space-y-5" onSubmit={submit}>
+      <form method="post" className="w-full max-w-sm space-y-5" onSubmit={submit}>
         <div className="text-center lg:text-left">
           <h1 className="text-2xl font-semibold">Choose a new password</h1>
           <p className="mt-2 text-sm text-muted-foreground">Open this page from the link in your reset email.</p>
@@ -58,12 +59,14 @@ function ResetPasswordPage() {
           <Label htmlFor="np">New password</Label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input id="np" type="password" autoComplete="new-password" className="h-11 rounded-xl pl-10" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input id="np" type="password" autoComplete="new-password" className="h-11 rounded-xl pl-10" value={password} onChange={(e) => setPassword(e.target.value)} aria-describedby="np-strength" />
           </div>
+          <PasswordStrength id="np-strength" password={password} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="cp">Confirm password</Label>
-          <Input id="cp" type="password" autoComplete="new-password" className="h-11 rounded-xl" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          <Input id="cp" type="password" autoComplete="new-password" className="h-11 rounded-xl" value={confirm} onChange={(e) => setConfirm(e.target.value)} aria-invalid={confirm.length > 0 && confirm !== password} />
+          {confirm.length > 0 && confirm !== password && <p role="alert" className="text-xs text-destructive">Passwords don't match</p>}
         </div>
         {needsCode && (
           <div className="space-y-2">
