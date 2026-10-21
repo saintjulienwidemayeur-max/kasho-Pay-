@@ -75,7 +75,7 @@ type CardColor = "mint" | "sunset" | "ocean" | "gold" | "midnight" | "forest" | 
 
 export type PublicConfig = {
   htgPerUsd: number; fees: FeeRule[]; minDepositUsd: number; maxDepositUsd: number | null;
-  minWithdrawUsd: number; maxWithdrawUsd: number | null; minCardFundUsd: number; requireKycForCards: boolean; sandbox: boolean;
+  minWithdrawUsd: number; maxWithdrawUsd: number | null; minCardFundUsd: number; minCardPrefundUsd: number; requireKycForCards: boolean; sandbox: boolean;
 };
 export type CardTx = { id: string; title: string; type: string; amount: number; status: string; createdAt: string };
 
