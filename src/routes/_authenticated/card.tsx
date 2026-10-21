@@ -3,7 +3,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format, isSameMonth, isToday, isYesterday } from "date-fns";
 import { ArrowDownToLine, Check, ChevronLeft, ChevronRight, Trash2, Eye, EyeOff, Lock, Pencil, Plus, Wifi } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -26,6 +25,7 @@ import {
 import { cleanAmount, errorMessage, usd } from "@/lib/format";
 import type { Transaction } from "@/components/kasho/data";
 import { TransactionList } from "@/components/kasho/transactions-list";
+import { CardBrandLogo } from "@/components/kasho/card-brand-logos";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/card")({
@@ -227,7 +227,7 @@ function CardPage() {
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-xs font-semibold uppercase tracking-[.16em]">{selected.label}</p>
-                <Badge variant="outline" className="border-white/30 text-[10px] text-white">{selected.brand}</Badge>
+                <CardBrandLogo brand={selected.brand} onDark className="h-5 w-auto" />
               </div>
               <p className="mt-2 text-xl font-bold sm:text-2xl">{usd(selected.balance)}</p>
               <p className="text-[11px] text-white/70">Card balance, separate from your wallet</p>
@@ -533,7 +533,7 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
             <div className="grid grid-cols-2 gap-3">
               {(["VISA", "MASTERCARD"] as const).map((b) => (
                 <button key={b} type="button" onClick={() => setBrand(b)} className={cn("rounded-xl border p-4 text-sm font-medium transition", brand === b ? "border-primary bg-primary/10" : "border-border hover:bg-secondary")}>
-                  {b === "VISA" ? "Visa" : "Mastercard"}
+                  <span className="flex flex-col items-center gap-2"><CardBrandLogo brand={b} className="h-8 w-auto" /><span>{b === "VISA" ? "Visa" : "Mastercard"}</span></span>
                 </button>
               ))}
             </div>
