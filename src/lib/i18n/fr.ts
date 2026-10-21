@@ -165,7 +165,10 @@ export const FR: Record<string, string> = {
   "Search by @username": "Rechercher par @nom d'utilisateur", "Add a note (optional)": "Ajouter une note (facultatif)",
   "Kasho Pay QR code": "Code QR Kasho Pay", "We could not find that Kasho user.": "Nous n'avons pas trouvé cet utilisateur Kasho.",
   "Payment link copied": "Lien de paiement copié", "Transfer completed": "Transfert effectué", "Send again": "Envoyer à nouveau",
-  "More than your balance": "Plus que votre solde", "Delete digit": "Effacer un chiffre", "Confirm and send": "Confirmer et envoyer", "Scan to pay": "Scanner pour payer",
+  "More than your balance": "Plus que votre solde", "More than your balance (fee included)": "Plus que votre solde (frais inclus)",
+  "No fee is defined for that amount. Please try a different amount.": "Aucun frais n'est défini pour ce montant. Essayez un autre montant.",
+  "Fees are temporarily unavailable. Please try again later.": "Les frais sont temporairement indisponibles. Réessayez plus tard.",
+  "That amount is too small to cover the fee.": "Ce montant est trop petit pour couvrir les frais.", "Delete digit": "Effacer un chiffre", "Confirm and send": "Confirmer et envoyer", "Scan to pay": "Scanner pour payer",
 
   // KYC
   "You're verified": "Vous êtes vérifié", "Your identity has been confirmed. You have full access to Kasho Pay.": "Votre identité a été confirmée. Vous avez un accès complet à Kasho Pay.",
@@ -318,6 +321,17 @@ export const MONTHS_FR: Record<string, string> = {
 
 // Dynamic strings: [regex, replacement]. $1... are the captured parts (amounts, names stay as they are).
 export const PATTERNS: [RegExp, string][] = [
+  // Fees (KASHOPAY LLC billing). More specific than the generic patterns below, so they come first.
+  [/^Fee (\$[\d.,]+) · your wallet receives (\$[\d.,]+)$/, "Frais $1 · votre portefeuille reçoit $2"],
+  [/^Fee (\$[\d.,]+) · total taken from your wallet (\$[\d.,]+) · you receive about (.+) HTG$/, "Frais $1 · total prélevé sur votre portefeuille $2 · vous recevez environ $3 HTG"],
+  [/^Fee (\$[\d.,]+) · total taken from your wallet (\$[\d.,]+)$/, "Frais $1 · total prélevé sur votre portefeuille $2"],
+  [/^Taken from your wallet \((.+) available\) plus a (.+) card creation fee\.$/, "Prélevé sur votre portefeuille ($1 disponible) plus des frais de création de carte de $2."],
+  [/^Taken from your wallet \((.+) available\)\.$/, "Prélevé sur votre portefeuille ($1 disponible)."],
+  [/^Maximum deposit is (.+)\.$/, "Le dépôt maximum est de $1."],
+  [/^Maximum withdrawal is (.+)\.$/, "Le retrait maximum est de $1."],
+  [/^The amount must be more than the (.+) fee\.$/, "Le montant doit être supérieur aux frais de $1."],
+  [/^The amount must be between (.+) and (.+)\.$/, "Le montant doit être compris entre $1 et $2."],
+  [/^(\$[\d.,]+) sent to (.+) \(fee (\$[\d.,]+)\)$/, "$1 envoyés à $2 (frais : $3)"],
   [/^Welcome to Kasho Pay, (.+)!$/, "Bienvenue sur Kasho Pay, $1 !"],
   [/^Good to see you, (.+)$/, "Content de vous voir, $1"],
   [/^Welcome back, (.+)$/, "Content de vous revoir, $1"],

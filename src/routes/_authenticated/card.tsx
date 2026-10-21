@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { useRefreshAll, useTransactions, useWalletState, type CardColor, type KashoCard } from "@/lib/queries";
+import { useConfig, useRefreshAll, useTransactions, useWalletState, type CardColor, type KashoCard } from "@/lib/queries";
+import { feeFor } from "@/lib/fees";
 import { CARD_COLOR_PRESETS } from "@/lib/card-colors";
 import { refreshSession, useSession } from "@/lib/session";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +20,7 @@ import { status } from "@/components/kasho/status-modal";
 import { isCancelled, useStepUp } from "@/lib/stepup";
 import { useCardCode } from "@/components/kasho/card-code";
 import {
-  cardTransactionsFn, createCardFn, freezeCardFn, fundCardFn, getPublicConfig, revealCardFn,
+  cardTransactionsFn, createCardFn, freezeCardFn, fundCardFn, revealCardFn,
   syncCardFn, terminateCardFn, removeCardFn, updateCardFn, withdrawCardFn,
 } from "@/lib/api";
 import { errorMessage, usd } from "@/lib/format";
@@ -318,9 +319,13 @@ function MoveMoneyDialog({ mode, open, onOpenChange, card, walletBalance }: { mo
   const refresh = useRefreshAll();
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
+  const { data: config } = useConfig();
   const parsed = Number(amount);
-  const max = mode === "in" ? walletBalance : card.balance;
-  const valid = parsed > 0 && parsed <= max;
+  const feeOrNull = feeFor(config?.fees, mode === "in" ? "card_fund" : "card_withdraw", parsed);
+  const fee = feeOrNull ?? 0;
+  // Adding: the wallet pays amount + fee. Moving back: the fee is taken from the amount, so it must be larger than the fee.
+  const max = mode === "in" ? walletBalance - fee : card.balance;
+  const valid = parsed > 0 && feeOrNull !== null && parsed <= max && (mode === "in" || parsed > fee);
 
   const handleConfirm = async () => {
     if (!valid) return;
@@ -362,7 +367,19 @@ function MoveMoneyDialog({ mode, open, onOpenChange, card, walletBalance }: { mo
               <Button key={v} type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setAmount(String(v))}>${v}</Button>
             ))}
           </div>
-          {amount && !valid && <p className="text-xs text-destructive">{parsed > max ? "That is more than the available balance." : "Enter a valid amount."}</p>}
+          {parsed > 0 && feeOrNull !== null && (
+            <p className="text-xs text-muted-foreground">
+              {mode === "in"
+                ? `Fee ${usd(fee)} · total taken from your wallet ${usd(parsed + fee)}`
+                : `Fee ${usd(fee)} · your wallet receives ${usd(Math.max(0, parsed - fee))}`}
+            </p>
+          )}
+          {amount && !valid && (
+            <p className="text-xs text-destructive">
+              {parsed > max ? (mode === "in" && parsed <= walletBalance ? "That is more than your wallet balance (fee included)." : "That is more than the available balance.")
+                : mode === "out" && parsed > 0 && parsed <= fee ? `The amount must be more than the ${usd(fee)} fee.` : "Enter a valid amount."}
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button className="h-11 w-full rounded-xl shadow-neon" disabled={!valid || busy} onClick={handleConfirm}>
@@ -393,7 +410,7 @@ function ColorPicker({ color, setColor }: { color: CardColor; setColor: (c: Card
 function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; walletBalance: number; onCreated: (id: string) => void }) {
   const refresh = useRefreshAll();
   const session = useSession();
-  const { data: config } = useQuery({ queryKey: ["config"], queryFn: () => getPublicConfig(), staleTime: 5 * 60_000 });
+  const { data: config } = useConfig();
   const [step, setStep] = useState(0);
   const [color, setColor] = useState<CardColor>("mint");
   const [brand, setBrand] = useState<"VISA" | "MASTERCARD">("VISA");
@@ -420,12 +437,13 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
   }, [open]);
 
   const parsed = Number(amount);
-  const fee = config?.cardCreationFeeUsd ?? 0;
+  const feeOrNull = feeFor(config?.fees, "card_creation", parsed);
+  const fee = feeOrNull ?? 0;
   const min = config?.minCardFundUsd ?? 1;
   const needsKyc = (config?.requireKycForCards ?? false) && session?.profile?.kyc_status !== "verified";
   const steps = [...(askContact ? ["details"] : []), "network", "prefund", "design"] as const;
   const current = steps[Math.min(step, steps.length - 1)]!;
-  const amountOk = parsed >= min && parsed + fee <= walletBalance;
+  const amountOk = parsed >= min && feeOrNull !== null && parsed + fee <= walletBalance;
   const canNext = current === "details" ? contactOk : current === "prefund" ? amountOk : true;
   const last = step >= steps.length - 1;
 
@@ -529,7 +547,7 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
                 <Input id="card-amount" inputMode="decimal" className="h-12 rounded-xl pl-7 text-lg" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} />
               </div>
               <p className="text-xs text-muted-foreground">
-                Taken from your wallet ({usd(walletBalance)} available){fee > 0 ? ` plus a ${usd(fee)} creation fee` : ""}.
+                {`Taken from your wallet (${usd(walletBalance)} available)${fee > 0 ? ` plus a ${usd(fee)} card creation fee` : ""}.`}
               </p>
               {amount && parsed + fee > walletBalance && <p className="text-xs text-destructive">Not enough balance in your wallet.</p>}
               {amount && parsed < min && <p className="text-xs text-destructive">Minimum prefund is ${min}.</p>}

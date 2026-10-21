@@ -1,6 +1,7 @@
 // Client for the Kasho Pay backend (separate project, see kasho-pay-backend).
 // Every call sends the Supabase access token; the backend verifies it.
 import { supabase } from "@/integrations/supabase/client";
+import type { FeeRule } from "@/lib/fees";
 
 // If the app is opened from another device on the same Wi-Fi (e.g. http://192.168.1.155:5173),
 // "localhost" would point to that device, so use the same host as the page with the backend port.
@@ -53,8 +54,8 @@ type Arg<T> = { data: T };
 type CardColor = "mint" | "sunset" | "ocean" | "gold" | "midnight" | "forest" | "chrome";
 
 export type PublicConfig = {
-  htgPerUsd: number; withdrawFeePercent: number; cardCreationFeeUsd: number; minDepositUsd: number;
-  minWithdrawUsd: number; minCardFundUsd: number; requireKycForCards: boolean; sandbox: boolean;
+  htgPerUsd: number; fees: FeeRule[]; minDepositUsd: number; maxDepositUsd: number | null;
+  minWithdrawUsd: number; maxWithdrawUsd: number | null; minCardFundUsd: number; requireKycForCards: boolean; sandbox: boolean;
 };
 export type CardTx = { id: string; title: string; type: string; amount: number; status: string; createdAt: string };
 
@@ -65,7 +66,7 @@ export const createKycSession = () => call<{ url: string; reference: string }>("
 export const syncKyc = () => call<{ status: "unverified" | "pending" | "verified" | "rejected" }>("syncKyc", {});
 
 export const startDeposit = (a: Arg<{ provider: "moncash" | "natcash"; amountUsd: number; phone?: string | undefined }>) =>
-  call<{ transactionId: string; checkoutUrl: string | null; amountHtg: number; ussd: boolean }>("startDeposit", a.data);
+  call<{ transactionId: string; checkoutUrl: string | null; amountHtg: number; ussd: boolean; fee: number }>("startDeposit", a.data);
 export const syncTransaction = (a: Arg<{ transactionId: string }>) =>
   call<{ status: "pending" | "completed" | "failed" }>("syncTransaction", a.data);
 export const startWithdrawal = (a: Arg<{ provider: "moncash" | "natcash"; amountUsd: number; phone: string; confirmPassword: string }>) =>
@@ -73,7 +74,7 @@ export const startWithdrawal = (a: Arg<{ provider: "moncash" | "natcash"; amount
 
 export const searchUsers = (a: Arg<{ q: string }>) => call<{ username: string; name: string; kashoId?: string; email?: string }[]>("searchUsers", a.data);
 export const sendMoney = (a: Arg<{ username: string; amountUsd: number; note?: string | undefined }>) =>
-  call<{ reference: string; recipient: string }>("sendMoney", a.data);
+  call<{ reference: string; recipient: string; fee: number }>("sendMoney", a.data);
 
 export type CardHolderInput = {
   firstName: string; lastName: string; email: string; dob: string; country: string; idNumber: string;

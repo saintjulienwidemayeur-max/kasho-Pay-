@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { KashoMark } from "@/components/kasho/brand";
 import { QrScanner } from "@/components/kasho/qr-scanner";
-import { useRefreshAll, useTransactions, useWalletState } from "@/lib/queries";
+import { useConfig, useRefreshAll, useTransactions, useWalletState } from "@/lib/queries";
+import { feeFor } from "@/lib/fees";
 import { searchUsers, sendMoney } from "@/lib/api";
 import { useSession, initials } from "@/lib/session";
 import { errorMessage, usd } from "@/lib/format";
@@ -109,8 +110,11 @@ function TransferPage() {
       return (a === "0" && n !== "." ? n : a + n).slice(0, 8);
     });
 
+  const { data: config } = useConfig();
   const parsed = Number(amount);
-  const tooMuch = parsed > walletBalance;
+  const feeOrNull = feeFor(config?.fees, "transfer", parsed);
+  const fee = feeOrNull ?? 0;
+  const tooMuch = parsed + fee > walletBalance; // the sender pays the amount plus the fee
   const share = async () => {
     if (navigator.share) await navigator.share({ title: `Pay ${session?.name ?? ""} on Kasho`, url: payLink });
     else {
@@ -213,7 +217,7 @@ function TransferPage() {
               </div>
               <div className="my-6 text-center">
                 <p className="text-5xl font-semibold">${amount}</p>
-                <p className={cn("mt-2 text-xs", tooMuch ? "text-destructive" : "text-muted-foreground")}>{tooMuch ? "More than your balance" : `Available ${usd(walletBalance)}`}</p>
+                <p className={cn("mt-2 text-xs", tooMuch ? "text-destructive" : "text-muted-foreground")}>{tooMuch ? (fee > 0 ? "More than your balance (fee included)" : "More than your balance") : `Available ${usd(walletBalance)}`}</p>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "back"].map((n) => (
@@ -231,7 +235,7 @@ function TransferPage() {
               <span><span className="block text-sm font-medium">Kasho transfer</span><span className="block text-xs text-muted-foreground">Instant · Free</span></span>
             </div>
             <Input placeholder="Add a note (optional)" maxLength={140} className="mt-4 h-11 rounded-xl" value={note} onChange={(e) => setNote(e.target.value)} />
-            <Button className="mt-5 h-12 w-full rounded-xl" disabled={!recipient || parsed <= 0 || tooMuch} onClick={() => setConfirm(true)}>
+            <Button className="mt-5 h-12 w-full rounded-xl" disabled={!recipient || parsed <= 0 || feeOrNull === null || tooMuch} onClick={() => setConfirm(true)}>
               Review transfer<Send />
             </Button>
           </section>
@@ -281,7 +285,7 @@ function TransferPage() {
                 <p className="mt-1 text-xs text-muted-foreground">{[recipient?.email, recipient?.kashoId].filter(Boolean).join(" · ") || `@${recipient?.username}`}</p>
               </div>
               <dl className="mt-6 divide-y divide-border text-sm">
-                {[["Method", "Kasho transfer"], ["Fee", "$0.00"], ["Total", usd(parsed)]].map(([a, b]) => (
+                {[["Method", "Kasho transfer"], ["Fee", usd(fee)], ["Total", usd(parsed + fee)]].map(([a, b]) => (
                   <div className="flex justify-between gap-4 py-3" key={a}><dt className="text-muted-foreground">{a}</dt><dd className="text-right font-medium">{b}</dd></div>
                 ))}
               </dl>

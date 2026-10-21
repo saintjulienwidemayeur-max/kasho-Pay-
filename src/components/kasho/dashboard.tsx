@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { ArrowDownToLine, ArrowUpRight, ExternalLink, Loader2, Plus, ShieldCheck, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { TransactionList } from "./transactions-list";
@@ -10,18 +9,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { greetingName, useSession } from "@/lib/session";
-import { useRefreshAll, useTransactions, useWalletState } from "@/lib/queries";
-import { getPublicConfig, startDeposit, startWithdrawal, syncTransaction } from "@/lib/api";
+import { useConfig, useRefreshAll, useTransactions, useWalletState } from "@/lib/queries";
+import { startDeposit, startWithdrawal, syncTransaction } from "@/lib/api";
+import { feeFor } from "@/lib/fees";
 import { errorMessage, usd } from "@/lib/format";
 import { status } from "@/components/kasho/status-modal";
 import { isCancelled, useStepUp } from "@/lib/stepup";
 import { cn } from "@/lib/utils";
 
 const QUICK_AMOUNTS = [5, 20, 50, 100];
-
-function useConfig() {
-  return useQuery({ queryKey: ["config"], queryFn: () => getPublicConfig(), staleTime: 5 * 60_000 });
-}
 
 export function DashboardPage() {
   const [selected, setSelected] = useState<Transaction | null>(null);
@@ -138,9 +134,11 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
 
   const parsed = Number(amount);
   const min = config?.minDepositUsd ?? 1;
+  const max = config?.maxDepositUsd ?? null;
+  const fee = feeFor(config?.fees, "wallet_deposit", parsed);
   const providerName = MOBILE_MONEY_PROVIDERS.find((p) => p.id === provider)!.name;
   const htg = config ? Math.ceil(parsed * config.htgPerUsd) : 0;
-  const valid = parsed >= min && (provider === "natcash" || phone.trim().length === 0 || phone.replace(/\D/g, "").length >= 8);
+  const valid = parsed >= min && (max === null || parsed <= max) && fee !== null && fee < parsed && (provider === "natcash" || phone.trim().length === 0 || phone.replace(/\D/g, "").length >= 8);
 
   const reset = () => { setWaiting(null); setAmount(""); setPhone(""); settled.current = false; };
 
@@ -152,15 +150,15 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
     const timer = setInterval(async () => {
       tries += 1;
       try {
-        const { status } = await syncTransaction({ data: { transactionId: waiting.id } });
+        const res = await syncTransaction({ data: { transactionId: waiting.id } });
         if (settled.current) return;
-        if (status === "completed") {
+        if (res.status === "completed") {
           settled.current = true;
           status.success("Payment received", "Your wallet was credited.");
           void refresh();
           reset();
           onOpenChange(false);
-        } else if (status === "failed") {
+        } else if (res.status === "failed") {
           settled.current = true;
           status.error("The payment did not go through.", "Payment failed");
           void refresh();
@@ -240,7 +238,11 @@ function AddMoneyDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                 {parsed > 0 && config && (
                   <p className="text-xs text-muted-foreground">You pay about {htg.toLocaleString()} HTG (rate: {config.htgPerUsd} HTG per $1).</p>
                 )}
+                {parsed > 0 && fee !== null && (
+                  <p className="text-xs text-muted-foreground">{`Fee ${usd(fee)} · your wallet receives ${usd(parsed - fee)}`}</p>
+                )}
                 {amount && parsed < min && <p className="text-xs text-destructive">Minimum deposit is ${min}.</p>}
+                {amount && max !== null && parsed > max && <p className="text-xs text-destructive">Maximum deposit is ${max}.</p>}
               </div>
             </div>
 
@@ -265,11 +267,12 @@ function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; 
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const parsed = Number(amount);
-  const feePct = config?.withdrawFeePercent ?? 0;
-  const fee = Math.round(parsed * feePct) / 100;
+  const feeOrNull = feeFor(config?.fees, "wallet_withdrawal", parsed);
+  const fee = feeOrNull ?? 0;
   const total = parsed + fee;
   const min = config?.minWithdrawUsd ?? 1;
-  const valid = parsed >= min && total <= walletBalance && phone.replace(/\D/g, "").length >= 8;
+  const max = config?.maxWithdrawUsd ?? null;
+  const valid = parsed >= min && (max === null || parsed <= max) && feeOrNull !== null && total <= walletBalance && phone.replace(/\D/g, "").length >= 8;
   const providerName = MOBILE_MONEY_PROVIDERS.find((p) => p.id === provider)!.name;
 
   const handleConfirm = async () => {
@@ -312,14 +315,14 @@ function WithdrawDialog({ open, onOpenChange, walletBalance }: { open: boolean; 
             <Label htmlFor="wd-amount">Amount (USD)</Label>
             <AmountField id="wd-amount" amount={amount} setAmount={setAmount} />
             <p className="text-xs text-muted-foreground">Wallet available · {usd(walletBalance)}</p>
-            {parsed > 0 && (
+            {parsed > 0 && feeOrNull !== null && (
               <p className="text-xs text-muted-foreground">
-                Fee {feePct}% = {usd(fee)} · total taken from your wallet {usd(total)}
-                {config ? ` · you receive about ${Math.floor(parsed * config.htgPerUsd).toLocaleString()} HTG` : ""}
+                {`Fee ${usd(fee)} · total taken from your wallet ${usd(total)}${config ? ` · you receive about ${Math.floor(parsed * config.htgPerUsd).toLocaleString()} HTG` : ""}`}
               </p>
             )}
             {amount && total > walletBalance && <p className="text-xs text-destructive">That is more than your wallet balance (fee included).</p>}
             {amount && parsed > 0 && parsed < min && <p className="text-xs text-destructive">Minimum withdrawal is ${min}.</p>}
+            {amount && max !== null && parsed > max && <p className="text-xs text-destructive">Maximum withdrawal is ${max}.</p>}
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { CardHolderRow, CardRow, DisputeRow } from "@/integrations/supabase/types";
 import { toTransaction, type Transaction } from "@/components/kasho/data";
 import { useSession } from "@/lib/session";
+import { getPublicConfig } from "@/lib/api";
 
 export type CardColor = "mint" | "sunset" | "ocean" | "gold" | "midnight" | "forest" | "chrome";
 export type CardStatus = "pending" | "active" | "frozen" | "failed" | "terminated";
@@ -132,4 +133,9 @@ export function useRealtimeSync() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+}
+
+/** Rates, limits and the fee schedule (cached for 5 minutes). */
+export function useConfig() {
+  return useQuery({ queryKey: ["config"], queryFn: () => getPublicConfig(), staleTime: 5 * 60_000 });
 }
