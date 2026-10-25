@@ -76,10 +76,15 @@ type CardColor = "mint" | "sunset" | "ocean" | "gold" | "midnight" | "forest" | 
 export type PublicConfig = {
   htgPerUsd: number; fees: FeeRule[]; minDepositUsd: number; maxDepositUsd: number | null;
   minWithdrawUsd: number; maxWithdrawUsd: number | null; minCardFundUsd: number; minCardPrefundUsd: number; requireKycForCards: boolean; sandbox: boolean;
+  pushPublicKey: string | null;
 };
 export type CardTx = { id: string; title: string; type: string; amount: number; status: string; createdAt: string };
 
 export const getPublicConfig = () => call<PublicConfig>("getPublicConfig");
+export const savePushSubscription = (a: Arg<{ endpoint: string; keys: { p256dh: string; auth: string }; lang: "fr" | "en"; tz?: string | undefined }>) =>
+  call<{ ok: true }>("savePushSubscription", a.data);
+export const removePushSubscription = (a: Arg<{ endpoint: string }>) => call<{ ok: true }>("removePushSubscription", a.data);
+export const sendTestPush = () => call<{ sent: number }>("sendTestPush", {});
 export const logActivity = (a: Arg<{ event: "Successful login" }>) => call<{ ok: boolean }>("logActivity", a.data);
 
 export const createKycSession = () => call<{ url: string; reference: string }>("createKycSession", {});

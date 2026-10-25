@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownToLine, ArrowUpRight, ExternalLink, Loader2, Plus, ShieldCheck, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { PushCard } from "./push-card";
 import { TransactionList } from "./transactions-list";
 import type { Transaction } from "./data";
 import { MOBILE_MONEY_PROVIDERS, type MobileMoneyProvider } from "./provider-badges";
@@ -50,6 +51,8 @@ export function DashboardPage() {
         <p className="text-sm text-muted-foreground">Welcome back, {firstName}</p>
         <h1 className="mt-1 text-3xl font-semibold">Your wallet</h1>
       </div>
+
+      <PushCard />
 
       <section className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8">
         <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
