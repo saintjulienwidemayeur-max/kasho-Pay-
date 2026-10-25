@@ -9,9 +9,10 @@ import { AuthLayout } from "@/components/kasho/auth-layout";
 import { PasswordStrength } from "@/components/kasho/password-strength";
 import { verifiedTotpFactor } from "@/lib/stepup";
 import { supabase } from "@/integrations/supabase/client";
+import { noIndexMeta } from "@/lib/seo";
 
 export const Route = createFileRoute("/reset-password")({
-  head: () => ({ meta: [{ title: "Reset password | Kasho Pay" }] }),
+  head: () => ({ meta: [{ title: "Réinitialiser le mot de passe | Kasho Pay" }, ...noIndexMeta] }),
   component: ResetPasswordPage,
 });
 

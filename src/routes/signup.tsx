@@ -12,17 +12,13 @@ import { cn } from "@/lib/utils";
 import { COUNTRIES } from "@/lib/countries";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { publicPageHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/signup")({
-  head: () => ({
-    meta: [
-      { title: "Create account | Kasho Pay" },
-      { name: "description", content: "Create your Kasho Pay account." },
-      { property: "og:title", content: "Create account | Kasho Pay" },
-      { property: "og:description", content: "Create your Kasho Pay account." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
+  head: () => publicPageHead({
+    title: "Créer un compte | Kasho Pay",
+    description: "Créez votre compte Kasho Pay gratuitement en quelques minutes : portefeuille MonCash et NatCash, transferts et cartes virtuelles.",
+    path: "/signup",
   }),
   component: SignupPage,
 });
