@@ -439,7 +439,7 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
   const parsed = Number(amount);
   const feeOrNull = feeFor(config?.fees, "card_creation", parsed);
   const fee = feeOrNull ?? 0;
-  const min = config?.minCardFundUsd ?? 1;
+  const min = config?.minCardPrefundUsd ?? 2;
   const needsKyc = (config?.requireKycForCards ?? false) && session?.profile?.kyc_status !== "verified";
   const steps = [...(askContact ? ["details"] : []), "network", "prefund", "design"] as const;
   const current = steps[Math.min(step, steps.length - 1)]!;

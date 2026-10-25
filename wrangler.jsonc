@@ -1,0 +1,9 @@
+// Cloudflare Workers settings. `npm run build:cloudflare` (NITRO_PRESET=cloudflare_module) merges this file into the
+// generated .output/server/wrangler.json, then `npx wrangler deploy` publishes it. Render keeps using `npm run build`.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kasho-pay",
+  "compatibility_date": "2026-10-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true }
+}
