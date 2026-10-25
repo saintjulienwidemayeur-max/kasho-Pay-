@@ -1,6 +1,8 @@
 // English -> French dictionary. Keys are the exact English UI strings.
 // Missing a translation? Add the English text as key. Open the app with ?i18n-debug=1 to list untranslated strings in the console.
 export const FR: Record<string, string> = {
+  "Your wallet for Haiti": "Votre portefeuille pour Haïti",
+  "Top up with MonCash and NatCash, send money and create Visa or Mastercard virtual cards.": "Rechargez avec MonCash et NatCash, envoyez de l'argent et créez des cartes virtuelles Visa ou Mastercard.",
   "This reset link has expired": "Ce lien de réinitialisation a expiré",
   "The link is invalid, was already used, or is older than one hour. Request a new one from the log in page.": "Le lien est invalide, a déjà été utilisé ou date de plus d'une heure. Demandez-en un nouveau depuis la page de connexion.",
   "Back to log in": "Retour à la connexion",
@@ -337,6 +339,19 @@ export const FR: Record<string, string> = {
   "Your data is encrypted and protected.": "Vos données sont chiffrées et protégées.",
   "Terminate card": "Résilier la carte", "Terminate this card?": "Résilier cette carte ?", "Terminating your card...": "Résiliation de votre carte...", "Card terminated": "Carte résiliée",
   "Cancel": "Annuler", "Save": "Enregistrer", "Close": "Fermer", "Language": "Langue",
+  // Push notifications
+  "Turn on notifications": "Activer les notifications",
+  "Get a good morning message every day and an alert for every transaction.": "Recevez un message de bonjour chaque matin et une alerte pour chaque transaction.",
+  "Not now": "Plus tard",
+  "Notifications are on": "Les notifications sont activées",
+  "Notifications are blocked. Allow them for Kasho Pay in your browser or phone settings, then try again.": "Les notifications sont bloquées. Autorisez-les pour Kasho Pay dans les réglages de votre navigateur ou de votre téléphone, puis réessayez.",
+  "Notifications were not turned on. You can try again any time.": "Les notifications n'ont pas été activées. Vous pouvez réessayer à tout moment.",
+  "This device does not support notifications.": "Cet appareil ne prend pas en charge les notifications.",
+  "Could not turn on notifications. Please try again.": "Impossible d'activer les notifications. Veuillez réessayer.",
+  "On iPhone, add Kasho Pay to your home screen first (Share > Add to Home Screen), then turn on notifications.": "Sur iPhone, ajoutez d'abord Kasho Pay à votre écran d'accueil (Partager > Sur l'écran d'accueil), puis activez les notifications.",
+  "Send a test notification": "Envoyer une notification de test",
+  "Test notification sent": "Notification de test envoyée",
+  "No device received the notification. Turn on notifications and try again.": "Aucun appareil n'a reçu la notification. Activez les notifications et réessayez.",
 };
 
 export const MONTHS_FR: Record<string, string> = {

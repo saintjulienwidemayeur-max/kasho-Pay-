@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Bell, ChevronRight, CreditCard, HelpCircle, LogOut, Lock, Settings, ShieldCheck, User } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +19,9 @@ import { useTransactions } from "@/lib/queries";
 import { downloadBlob, makeSimplePdf } from "@/lib/pdf";
 import { errorMessage } from "@/lib/format";
 import { LanguageSwitch } from "@/lib/i18n";
+import { disablePush, enablePush, getCurrentSubscription, pushErrorMessage, pushSupported } from "@/lib/push";
+import { sendTestPush } from "@/lib/api";
+import { useConfig } from "@/lib/queries";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
@@ -240,16 +243,44 @@ function NotificationsDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const session = useSession();
   const [prefs, setPrefs] = useState<NotificationPrefs>(session?.profile?.notification_prefs ?? DEFAULT_PREFS);
 
+  const { data: config } = useConfig();
+  const [subscribed, setSubscribed] = useState(false);
+  const [testing, setTesting] = useState(false);
+  useEffect(() => {
+    if (open) void getCurrentSubscription().then((s) => setSubscribed(!!s));
+  }, [open]);
+
   const update = async (key: keyof NotificationPrefs, value: boolean) => {
     if (!session) return;
     const previous = prefs;
     const next = { ...prefs, [key]: value };
     setPrefs(next);
     try {
+      if (key === "push" && value && config?.pushPublicKey && pushSupported() && !(await getCurrentSubscription())) {
+        await enablePush(config.pushPublicKey);
+        setSubscribed(true);
+      }
       await saveNotificationPrefs(session.id, next);
-    } catch {
+      if (key === "push" && !value && subscribed) {
+        await disablePush();
+        setSubscribed(false);
+      }
+    } catch (e) {
       setPrefs(previous);
-      toast.error("Could not save your preference");
+      toast.error(key === "push" && value ? pushErrorMessage(e) : "Could not save your preference");
+    }
+  };
+
+  const testPush = async () => {
+    setTesting(true);
+    try {
+      const { sent } = await sendTestPush();
+      if (sent > 0) toast.success("Test notification sent");
+      else toast.error("No device received the notification. Turn on notifications and try again.");
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -277,6 +308,11 @@ function NotificationsDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             </div>
           ))}
         </div>
+        {subscribed && (
+          <Button variant="outline" className="h-10 w-full rounded-xl" onClick={testPush} disabled={testing}>
+            Send a test notification
+          </Button>
+        )}
         <DialogFooter>
           <Button className="h-11 w-full rounded-xl shadow-neon" onClick={() => onOpenChange(false)}>Done</Button>
         </DialogFooter>
