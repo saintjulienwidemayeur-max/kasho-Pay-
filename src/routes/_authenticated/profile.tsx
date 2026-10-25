@@ -140,7 +140,7 @@ function PersonalInfoDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const [addr, setAddr] = useState({ street: "", city: "", state: "", postal: "" });
   const [busy, setBusy] = useState(false);
   const stepUp = useStepUp();
-  // After a verified identity check, the name comes from the ID document and cannot be edited.
+  // After a verified identity check, the whole section is read-only (also enforced by the database and the server).
   const nameLocked = p?.kyc_status === "verified";
 
   const load = () => {
@@ -157,14 +157,12 @@ function PersonalInfoDialog({ open, onOpenChange }: { open: boolean; onOpenChang
       toast.error("Name and email can't be empty");
       return;
     }
-    if (!session) return;
+    if (!session || nameLocked) return;
     setBusy(true);
     try {
       const { error } = await supabase.from("profiles").update({
-        ...(nameLocked ? {} : {
-          first_name: firstName.trim(), last_name: lastName.trim(),
-          display_name: `${firstName.trim()} ${lastName.trim()}`,
-        }),
+        first_name: firstName.trim(), last_name: lastName.trim(),
+        display_name: `${firstName.trim()} ${lastName.trim()}`,
         phone_code: phoneCode.trim() || "+509", phone_number: phone.replace(/\D/g, "") || null,
         address_street: addr.street.trim() || null, address_city: addr.city.trim() || null,
         address_state: addr.state.trim() || null, address_postal_code: addr.postal.trim() || null,
@@ -195,6 +193,9 @@ function PersonalInfoDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           <DialogDescription>Update the details on your Kasho Pay account.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          {nameLocked && (
+            <p className="rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">Your personal information is locked because your identity is verified. Contact support if something is wrong.</p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="pi-first">First name</Label>
@@ -205,32 +206,29 @@ function PersonalInfoDialog({ open, onOpenChange }: { open: boolean; onOpenChang
               <Input id="pi-last" className="h-11 rounded-xl" disabled={nameLocked} value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </div>
           </div>
-          {nameLocked && (
-            <p className="-mt-1 text-xs text-muted-foreground">Your name is locked because your identity is verified. Contact support if it is wrong.</p>
-          )}
           <div className="space-y-2">
             <Label htmlFor="pi-email">Email</Label>
-            <Input id="pi-email" type="email" className="h-11 rounded-xl" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input disabled={nameLocked} id="pi-email" type="email" className="h-11 rounded-xl" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="pi-phone">Phone</Label>
             <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
-              <Input aria-label="Country code" className="h-11 rounded-xl text-center" value={phoneCode} onChange={(e) => setPhoneCode(e.target.value.replace(/[^\d+]/g, ""))} />
-              <Input id="pi-phone" type="tel" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Input disabled={nameLocked} aria-label="Country code" className="h-11 rounded-xl text-center" value={phoneCode} onChange={(e) => setPhoneCode(e.target.value.replace(/[^\d+]/g, ""))} />
+              <Input disabled={nameLocked} id="pi-phone" type="tel" className="h-11 rounded-xl" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="pi-street">Street address</Label>
-            <Input id="pi-street" className="h-11 rounded-xl" value={addr.street} onChange={(e) => setAddr((v) => ({ ...v, street: e.target.value }))} />
+            <Input disabled={nameLocked} id="pi-street" className="h-11 rounded-xl" value={addr.street} onChange={(e) => setAddr((v) => ({ ...v, street: e.target.value }))} />
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <div className="space-y-2"><Label htmlFor="pi-city">City</Label><Input id="pi-city" className="h-11 rounded-xl" value={addr.city} onChange={(e) => setAddr((v) => ({ ...v, city: e.target.value }))} /></div>
-            <div className="space-y-2"><Label htmlFor="pi-state">State</Label><Input id="pi-state" className="h-11 rounded-xl" value={addr.state} onChange={(e) => setAddr((v) => ({ ...v, state: e.target.value }))} /></div>
-            <div className="space-y-2"><Label htmlFor="pi-zip">Postal code</Label><Input id="pi-zip" className="h-11 rounded-xl" value={addr.postal} onChange={(e) => setAddr((v) => ({ ...v, postal: e.target.value }))} /></div>
+            <div className="space-y-2"><Label htmlFor="pi-city">City</Label><Input disabled={nameLocked} id="pi-city" className="h-11 rounded-xl" value={addr.city} onChange={(e) => setAddr((v) => ({ ...v, city: e.target.value }))} /></div>
+            <div className="space-y-2"><Label htmlFor="pi-state">State</Label><Input disabled={nameLocked} id="pi-state" className="h-11 rounded-xl" value={addr.state} onChange={(e) => setAddr((v) => ({ ...v, state: e.target.value }))} /></div>
+            <div className="space-y-2"><Label htmlFor="pi-zip">Postal code</Label><Input disabled={nameLocked} id="pi-zip" className="h-11 rounded-xl" value={addr.postal} onChange={(e) => setAddr((v) => ({ ...v, postal: e.target.value }))} /></div>
           </div>
         </div>
         <DialogFooter>
-          <Button className="h-11 w-full rounded-xl shadow-neon" disabled={busy} onClick={handleSave}>{busy ? "Saving..." : "Save changes"}</Button>
+          <Button className="h-11 w-full rounded-xl shadow-neon" disabled={busy || nameLocked} onClick={handleSave}>{busy ? "Saving..." : "Save changes"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
