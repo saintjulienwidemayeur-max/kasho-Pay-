@@ -23,6 +23,26 @@ function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [needsCode, setNeedsCode] = useState(false);
   const [code, setCode] = useState("");
+  const [linkError, setLinkError] = useState(false);
+
+  // The email link can arrive two ways: with the recovery session already in the URL (supabase-js reads it), or as
+  // ?token_hash=...&type=recovery (checked here, so mail scanners that only fetch the page cannot use the link up).
+  // An expired or already used link comes back as #error=...&error_code=otp_expired.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+    if (hash.get("error") || hash.get("error_code")) {
+      setLinkError(true);
+      return;
+    }
+    const tokenHash = url.searchParams.get("token_hash");
+    if (tokenHash && url.searchParams.get("type") === "recovery") {
+      void supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" }).then(({ error }) => {
+        if (error) setLinkError(true);
+        else window.history.replaceState(null, "", "/reset-password");
+      });
+    }
+  }, []);
 
   // Accounts with 2FA must also give a valid code before the password can be reset by email link.
   useEffect(() => {
@@ -48,6 +68,18 @@ function ResetPasswordPage() {
     toast.success("Password updated");
     navigate({ to: "/" });
   };
+
+  if (linkError) {
+    return (
+      <AuthLayout>
+        <div className="w-full max-w-sm space-y-5 text-center lg:text-left">
+          <h1 className="text-2xl font-semibold">This reset link has expired</h1>
+          <p className="text-sm text-muted-foreground">The link is invalid, was already used, or is older than one hour. Request a new one from the log in page.</p>
+          <Button className="h-11 w-full rounded-xl" onClick={() => navigate({ to: "/auth" })}>Back to log in</Button>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout>
