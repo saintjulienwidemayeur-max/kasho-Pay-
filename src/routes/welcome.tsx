@@ -1,17 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { KashoWordmark } from "@/components/kasho/brand";
+import { publicPageHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/welcome")({
-  head: () => ({
-    meta: [
-      { title: "Welcome | Kasho Pay" },
-      { name: "description", content: "Save, spend, and grow your wealth, all in one simple place." },
-      { property: "og:title", content: "Welcome | Kasho Pay" },
-      { property: "og:description", content: "Save, spend, and grow your wealth, all in one simple place." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
+  head: () => publicPageHead({
+    title: "Kasho Pay | Portefeuille et cartes Visa Mastercard pour Haïti",
+    description: "Rechargez avec MonCash et NatCash, envoyez de l'argent et créez une carte virtuelle Visa ou Mastercard en dollars. Simple, rapide, sécurisé.",
+    path: "/welcome",
   }),
   component: WelcomePage,
 });

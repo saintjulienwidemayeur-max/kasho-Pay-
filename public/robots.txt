@@ -1,14 +1,17 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# Kasho Pay app (https://app.kashopay.com). Public pages are indexable; account pages are not.
 User-agent: *
-Allow: /
+Allow: /welcome
+Allow: /auth
+Allow: /signup
+Allow: /icons/
+Allow: /brand/
+Disallow: /transfer
+Disallow: /card
+Disallow: /transactions
+Disallow: /profile
+Disallow: /security
+Disallow: /kyc
+Disallow: /reset-password
+Disallow: /api/
+
+Sitemap: https://app.kashopay.com/sitemap.xml

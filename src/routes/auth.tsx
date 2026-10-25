@@ -8,17 +8,13 @@ import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/kasho/auth-layout";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/api";
+import { publicPageHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({
-    meta: [
-      { title: "Log in | Kasho Pay" },
-      { name: "description", content: "Log in to your Kasho Pay account." },
-      { property: "og:title", content: "Log in | Kasho Pay" },
-      { property: "og:description", content: "Log in to your Kasho Pay account." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
+  head: () => publicPageHead({
+    title: "Connexion | Kasho Pay",
+    description: "Connectez-vous à votre compte Kasho Pay : portefeuille, transferts et cartes virtuelles Visa et Mastercard.",
+    path: "/auth",
   }),
   component: LoginPage,
 });
