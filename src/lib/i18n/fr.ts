@@ -34,7 +34,7 @@ export const FR: Record<string, string> = {
   "Pick the look of your card.": "Choisissez l'apparence de votre carte.",
   "Your card holder details are incomplete. Please contact support.": "Les informations de votre titulaire de carte sont incomplètes. Contactez le support.",
   "We could not register your card holder with the card service. Please try again or contact support.": "Nous n'avons pas pu enregistrer votre titulaire de carte auprès du service de cartes. Réessayez ou contactez le support.",
-  "Your name is locked because your identity is verified. Contact support if it is wrong.": "Votre nom est verrouillé car votre identité est vérifiée. Contactez le support s'il est incorrect.",
+  "Your personal information is locked because your identity is verified. Contact support if something is wrong.": "Vos informations personnelles sont verrouillées car votre identité est vérifiée. Contactez le support en cas d'erreur.",
   "Your name cannot be changed after identity verification.": "Votre nom ne peut plus être modifié après la vérification de votre identité.",
   "The Kasho server took too long to answer. Please try again in a moment.": "Le serveur Kasho met trop de temps à répondre. Réessayez dans un instant.",
   "Cannot reach the Kasho server. Check your connection and try again.": "Impossible de joindre le serveur Kasho. Vérifiez votre connexion et réessayez.",
