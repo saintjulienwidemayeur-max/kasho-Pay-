@@ -1,7 +1,5 @@
 // English -> French dictionary. Keys are the exact English UI strings.
 // Missing a translation? Add the English text as key. Open the app with ?i18n-debug=1 to list untranslated strings in the console.
-import { ADMIN_FR, ADMIN_PATTERNS } from "./fr-admin";
-
 export const FR: Record<string, string> = {
   "Your wallet for Haiti": "Votre portefeuille pour Haïti",
   "Top up with MonCash and NatCash, send money and create Visa or Mastercard virtual cards.": "Rechargez avec MonCash et NatCash, envoyez de l'argent et créez des cartes virtuelles Visa ou Mastercard.",
@@ -354,6 +352,9 @@ export const FR: Record<string, string> = {
   "Send a test notification": "Envoyer une notification de test",
   "Test notification sent": "Notification de test envoyée",
   "No device received the notification. Turn on notifications and try again.": "Aucun appareil n'a reçu la notification. Activez les notifications et réessayez.",
+  // A Kasho Pay administrator suspended the account, or added / removed money (the admin site is a separate project)
+  "This account is suspended. Contact support.": "Ce compte est suspendu. Contactez le support.",
+  "Balance adjusted": "Solde ajusté", "Added by Kasho Pay": "Ajouté par Kasho Pay", "Removed by Kasho Pay": "Retiré par Kasho Pay", "Adjustment": "Ajustement",
 };
 
 export const MONTHS_FR: Record<string, string> = {
@@ -447,9 +448,6 @@ export const PATTERNS: [RegExp, string][] = [
   [/^Recipient: (.+)$/, "Destinataire : $1"],
   [/^(\$[\d.,]+) returned to your wallet\.$/, "$1 remis dans votre portefeuille."],
   [/^Your (.+) payment did not go through\.$/, "Votre paiement $1 n'a pas abouti."],
-  // The administration page (last, so the customer-facing texts above keep their wording).
-  ...ADMIN_PATTERNS,
+  [/^(\$[\d.,]+) was added to your wallet by Kasho Pay\.$/, "$1 ont été ajoutés à votre portefeuille par Kasho Pay."],
+  [/^(\$[\d.,]+) was removed from your wallet by Kasho Pay\.$/, "$1 ont été retirés de votre portefeuille par Kasho Pay."],
 ];
-
-// Texts the main dictionary already has keep their wording; the admin page only adds what is new.
-for (const [en, fr] of Object.entries(ADMIN_FR)) if (!(en in FR)) FR[en] = fr;
