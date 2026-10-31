@@ -1,5 +1,7 @@
 // English -> French dictionary. Keys are the exact English UI strings.
 // Missing a translation? Add the English text as key. Open the app with ?i18n-debug=1 to list untranslated strings in the console.
+import { ADMIN_FR, ADMIN_PATTERNS } from "./fr-admin";
+
 export const FR: Record<string, string> = {
   "Your wallet for Haiti": "Votre portefeuille pour Haïti",
   "Top up with MonCash and NatCash, send money and create Visa or Mastercard virtual cards.": "Rechargez avec MonCash et NatCash, envoyez de l'argent et créez des cartes virtuelles Visa ou Mastercard.",
@@ -445,4 +447,9 @@ export const PATTERNS: [RegExp, string][] = [
   [/^Recipient: (.+)$/, "Destinataire : $1"],
   [/^(\$[\d.,]+) returned to your wallet\.$/, "$1 remis dans votre portefeuille."],
   [/^Your (.+) payment did not go through\.$/, "Votre paiement $1 n'a pas abouti."],
+  // The administration page (last, so the customer-facing texts above keep their wording).
+  ...ADMIN_PATTERNS,
 ];
+
+// Texts the main dictionary already has keep their wording; the admin page only adds what is new.
+for (const [en, fr] of Object.entries(ADMIN_FR)) if (!(en in FR)) FR[en] = fr;

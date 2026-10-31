@@ -1,5 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { CreditCard, Home, Send, User, Bell, Search } from "lucide-react";
+import { CreditCard, Home, Send, User, Bell, Search, Shield } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { adminStatus } from "@/lib/api";
 import { useEffect } from "react";
 import { KashoWordmark } from "./brand";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const firstName = greetingName(name);
   const avatar = initials(session?.name ?? "Kasho User");
   const { walletBalance } = useWalletState();
+  // Administrators get an extra entry. adminStatus answers { isAdmin: false } for everybody else.
+  const admin = useQuery({ queryKey: ["admin", "status"], queryFn: adminStatus, staleTime: 5 * 60_000, retry: false });
+  const sideItems = admin.data?.isAdmin ? [...items, { to: "/admin", label: "Admin", icon: Shield }] : items;
   const notifications = useNotifications();
   const markAllRead = useMarkAllRead();
   const unread = notifications.filter((n) => !n.read).length;
@@ -49,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-panel/90 px-5 py-7 backdrop-blur-xl lg:flex">
           <KashoWordmark />
           <nav className="mt-12 space-y-2">
-            {items.map(({ to, label, icon: Icon }) => (
+            {sideItems.map(({ to, label, icon: Icon }) => (
               <Link
                 key={to}
                 to={to}

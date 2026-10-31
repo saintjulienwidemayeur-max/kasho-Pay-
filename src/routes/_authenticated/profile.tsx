@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Bell, ChevronRight, CreditCard, HelpCircle, LogOut, Lock, Settings, ShieldCheck, User } from "lucide-react";
+import { Bell, ChevronRight, CreditCard, HelpCircle, LogOut, Lock, Settings, Shield, ShieldCheck, User } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,7 +14,7 @@ import { useVerification } from "@/lib/verification-store";
 import { DEFAULT_PREFS, saveNotificationPrefs, type NotificationPrefs } from "@/lib/notifications-store";
 import { getSettings, setSettings, type KashoSettings } from "@/lib/settings-store";
 import { supabase } from "@/integrations/supabase/client";
-import { changeEmail, sendSupportMessage } from "@/lib/api";
+import { adminStatus, changeEmail, sendSupportMessage } from "@/lib/api";
 import { isCancelled, useStepUp } from "@/lib/stepup";
 import { useTransactions } from "@/lib/queries";
 import { downloadBlob, makeSimplePdf } from "@/lib/pdf";
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
 });
 
-type MenuKey = "personal" | "cards" | "security" | "notifications" | "verification" | "settings" | "help";
+type MenuKey = "personal" | "cards" | "security" | "notifications" | "verification" | "settings" | "help" | "admin";
 
 function ProfilePage() {
   const navigate = useNavigate();
@@ -47,6 +48,7 @@ function ProfilePage() {
   const verification = useVerification();
   const [open, setOpen] = useState<MenuKey | null>(null);
 
+  const admin = useQuery({ queryKey: ["admin", "status"], queryFn: adminStatus, staleTime: 5 * 60_000, retry: false });
   const verificationBadge = verification.status === "verified" ? "Verified" : verification.status === "pending" ? "Pending" : verification.status === "rejected" ? "Rejected" : "Not verified";
 
   const menu: { key: MenuKey; label: string; sub: string; icon: typeof User; badge?: string }[] = [
@@ -57,6 +59,7 @@ function ProfilePage() {
     { key: "verification", label: "Verification", sub: "Identity verification status", icon: ShieldCheck, badge: verificationBadge },
     { key: "settings", label: "Settings", sub: "App preferences", icon: Settings },
     { key: "help", label: "Help & support", sub: "FAQs and contact us", icon: HelpCircle },
+    ...(admin.data?.isAdmin ? [{ key: "admin" as const, label: "Administration", sub: "Freda balances, profit, customers", icon: Shield }] : []),
   ];
 
   const handleSignOut = async () => {
@@ -69,6 +72,7 @@ function ProfilePage() {
     if (key === "cards") { navigate({ to: "/card" }); return; }
     if (key === "verification") { navigate({ to: "/kyc" }); return; }
     if (key === "security") { navigate({ to: "/security" }); return; }
+    if (key === "admin") { navigate({ to: "/admin" }); return; }
     setOpen(key);
   };
 
