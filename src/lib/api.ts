@@ -75,7 +75,7 @@ type CardColor = "mint" | "sunset" | "ocean" | "gold" | "midnight" | "forest" | 
 
 export type PublicConfig = {
   htgPerUsd: number; fees: FeeRule[]; minDepositUsd: number; maxDepositUsd: number | null;
-  minWithdrawUsd: number; maxWithdrawUsd: number | null; minCardFundUsd: number; minCardPrefundUsd: number; requireKycForCards: boolean; sandbox: boolean;
+  minWithdrawUsd: number; maxWithdrawUsd: number | null; minCardFundUsd: number; minCardPrefundUsd: number; cardClosureFeeUsd?: number; requireKycForCards: boolean; sandbox: boolean;
   pushPublicKey: string | null;
 };
 export type CardTx = { id: string; title: string; type: string; amount: number; status: string; createdAt: string };
@@ -113,7 +113,7 @@ export const syncCardFn = (a: Arg<{ cardId: string }>) => call<{ status: string 
 export const fundCardFn = (a: Arg<{ cardId: string; amountUsd: number }>) => call<{ ok: boolean }>("fundCardFn", a.data);
 export const withdrawCardFn = (a: Arg<{ cardId: string; amountUsd: number }>) => call<{ ok: boolean }>("withdrawCardFn", a.data);
 export const freezeCardFn = (a: Arg<{ cardId: string; freeze: boolean }>) => call<{ status: string }>("freezeCardFn", a.data);
-export const terminateCardFn = (a: Arg<{ cardId: string }>) => call<{ refunded: number }>("terminateCardFn", a.data);
+export const terminateCardFn = (a: Arg<{ cardId: string }>) => call<{ refunded: number; fee?: number }>("terminateCardFn", a.data);
 export const updateCardFn = (a: Arg<{ cardId: string; label: string; color: CardColor }>) => call<{ ok: boolean }>("updateCardFn", a.data);
 export const revealCardFn = (a: Arg<{ cardId: string; code: string }>) =>
   call<{ number: string; cvv: string; expiryMonth: string; expiryYear: string; holderName: string }>("revealCardFn", a.data);
