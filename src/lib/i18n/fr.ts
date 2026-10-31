@@ -352,6 +352,9 @@ export const FR: Record<string, string> = {
   "Send a test notification": "Envoyer une notification de test",
   "Test notification sent": "Notification de test envoyée",
   "No device received the notification. Turn on notifications and try again.": "Aucun appareil n'a reçu la notification. Activez les notifications et réessayez.",
+  // A Kasho Pay administrator suspended the account, or added / removed money (the admin site is a separate project)
+  "This account is suspended. Contact support.": "Ce compte est suspendu. Contactez le support.",
+  "Balance adjusted": "Solde ajusté", "Added by Kasho Pay": "Ajouté par Kasho Pay", "Removed by Kasho Pay": "Retiré par Kasho Pay", "Adjustment": "Ajustement",
 };
 
 export const MONTHS_FR: Record<string, string> = {
@@ -445,4 +448,6 @@ export const PATTERNS: [RegExp, string][] = [
   [/^Recipient: (.+)$/, "Destinataire : $1"],
   [/^(\$[\d.,]+) returned to your wallet\.$/, "$1 remis dans votre portefeuille."],
   [/^Your (.+) payment did not go through\.$/, "Votre paiement $1 n'a pas abouti."],
+  [/^(\$[\d.,]+) was added to your wallet by Kasho Pay\.$/, "$1 ont été ajoutés à votre portefeuille par Kasho Pay."],
+  [/^(\$[\d.,]+) was removed from your wallet by Kasho Pay\.$/, "$1 ont été retirés de votre portefeuille par Kasho Pay."],
 ];

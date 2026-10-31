@@ -61,6 +61,8 @@ function LoginPage() {
       if (/not confirmed/i.test(error.message)) {
         setUnconfirmed(true);
         toast.error("Please verify your email first.");
+      } else if (error.code === "user_banned" || /banned/i.test(error.message)) {
+        toast.error("This account is suspended. Contact support.");
       } else {
         toast.error("Wrong email or password");
       }
