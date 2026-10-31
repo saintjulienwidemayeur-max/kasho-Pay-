@@ -3,6 +3,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/components/kasho/shell";
 import { MfaPrompt } from "@/components/kasho/mfa-prompt";
+import { TwoFactorGate } from "@/components/kasho/two-factor-gate";
 import { useEffect } from "react";
 import { registerServiceWorker, pushPermission, syncPushSubscription } from "@/lib/push";
 import { useLang } from "@/lib/i18n";
@@ -30,11 +31,11 @@ function AuthenticatedLayout() {
     });
   }, [lang]);
   return (
-    <>
+    <TwoFactorGate>
       <AppShell>
         <Outlet />
       </AppShell>
       <MfaPrompt />
-    </>
+    </TwoFactorGate>
   );
 }

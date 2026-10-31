@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -156,96 +156,17 @@ function SecurityPage() {
   );
 }
 
-function TwoFactor({ stepUp }: { stepUp: ReturnType<typeof useStepUp> }) {
-  const [factorId, setFactorId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [setup, setSetup] = useState<{ id: string; qr: string; secret: string } | null>(null);
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const load = async () => {
-    const { data } = await supabase.auth.mfa.listFactors();
-    setFactorId(data?.totp?.[0]?.id ?? null);
-    setLoading(false);
-  };
-  useEffect(() => { void load(); }, []);
-
-  const start = async () => {
-    setBusy(true);
-    try {
-      // Remove abandoned, never-verified attempts first.
-      const { data: all } = await supabase.auth.mfa.listFactors();
-      for (const f of (all?.all ?? []).filter((x) => x.status !== "verified")) await supabase.auth.mfa.unenroll({ factorId: f.id });
-      const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: "Kasho Pay" });
-      if (error) throw error;
-      setSetup({ id: data.id, qr: data.totp.qr_code, secret: data.totp.secret });
-      setCode("");
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const confirmSetup = async () => {
-    if (!setup) return;
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: setup.id, code: code.trim() });
-      if (error) throw new Error("Invalid code. Check your authenticator app and try again.");
-      toast.success("Two-factor authentication enabled");
-      setSetup(null);
-      await load();
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const disable = async () => {
-    if (!factorId) return;
-    setBusy(true);
-    try {
-      await stepUp.ask(); // password + current 2FA code
-      const { error } = await supabase.auth.mfa.unenroll({ factorId });
-      if (error) throw error;
-      toast.success("Two-factor authentication disabled");
-      await load();
-    } catch (e) {
-      if (!isCancelled(e)) toast.error(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
+function TwoFactor(_props: { stepUp: ReturnType<typeof useStepUp> }) {
+  // Two-factor authentication is mandatory (TwoFactorGate asks for it before the app opens): this card only reports it.
   return (
     <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold">Two-factor authentication (2FA)</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Ask for a code from an authenticator app (Google Authenticator, Authy, 1Password) to reveal your card, withdraw or change your password.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Kasho Pay only works with 2FA, because these tools can move money. Your authentication code is asked at every sign-in.</p>
         </div>
-        {!loading && factorId && <span className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">Enabled</span>}
+        <span className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary">Enabled</span>
       </div>
-      {!loading && !factorId && !setup && (
-        <Button className="mt-4 rounded-xl" disabled={busy} onClick={start}>Enable 2FA</Button>
-      )}
-      {!loading && factorId && (
-        <Button variant="outline" className="mt-4 rounded-xl text-destructive hover:text-destructive" disabled={busy} onClick={disable}>Disable 2FA</Button>
-      )}
-      {setup && (
-        <div className="mt-4 space-y-4">
-          <p className="text-sm">1. Scan this QR code with your authenticator app.</p>
-          <img src={setup.qr} alt="2FA QR code" className="h-44 w-44 rounded-xl bg-white p-2" />
-          <p className="break-all text-xs text-muted-foreground">Can't scan? Enter this key: <span className="font-mono">{setup.secret}</span></p>
-          <p className="text-sm">2. Enter the 6-digit code it shows.</p>
-          <div className="flex gap-2">
-            <Input inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="123456" className="h-11 rounded-xl" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
-            <Button className="h-11 rounded-xl" disabled={busy || code.length !== 6} onClick={confirmSetup}>Verify</Button>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
