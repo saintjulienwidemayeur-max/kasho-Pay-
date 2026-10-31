@@ -7,10 +7,6 @@ export const FR: Record<string, string> = {
   "The link is invalid, was already used, or is older than one hour. Request a new one from the log in page.": "Le lien est invalide, a déjà été utilisé ou date de plus d'une heure. Demandez-en un nouveau depuis la page de connexion.",
   "Back to log in": "Retour à la connexion",
   "Show more": "Voir plus",
-  // Mandatory 2FA
-  "Turn on two-factor authentication": "Activez l'authentification à deux facteurs",
-  "Kasho Pay only works with 2FA, because these tools can move money. Your authentication code is asked at every sign-in.": "Kasho Pay ne fonctionne qu'avec la 2FA, car les outils peuvent déplacer de l'argent. Votre code d'authentification est demandé à chaque connexion.",
-  "1. Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password).": "1. Scannez ce QR code avec votre application d'authentification (Google Authenticator, Authy, 1Password).",
   // Countries (signup list)
   "Haiti": "Haïti", "United States": "États-Unis", "Dominican Republic": "République dominicaine", "Brazil": "Brésil", "Chile": "Chili",
   "Mexico": "Mexique", "United Kingdom": "Royaume-Uni", "Belgium": "Belgique", "Switzerland": "Suisse", "Spain": "Espagne",
