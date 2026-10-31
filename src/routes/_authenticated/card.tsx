@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -417,6 +418,27 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
   const [amount, setAmount] = useState("10");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // After the request the dialog stays open and waits for the card service: "creating" until it answers.
+  const [wait, setWait] = useState<{ id: string; state: "creating" | "failed" | "slow" } | null>(null);
+  useEffect(() => {
+    if (!wait || wait.state !== "creating") return;
+    const started = Date.now();
+    const t = setInterval(async () => {
+      try {
+        const r = await syncCardFn({ data: { cardId: wait.id } });
+        if (r.status === "active" || r.status === "disabled") {
+          clearInterval(t);
+          status.success("Card ready", "Your card is active");
+          void refresh(); onCreated(wait.id); setWait(null); onOpenChange(false);
+        } else if (r.status === "failed") {
+          clearInterval(t); void refresh(); setWait({ id: wait.id, state: "failed" });
+        }
+      } catch { /* keep waiting */ }
+      if (Date.now() - started > 180_000) { clearInterval(t); void refresh(); onCreated(wait.id); setWait({ id: wait.id, state: "slow" }); }
+    }, 3000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wait?.id, wait?.state]);
 
   // The card service needs a phone number and a full address. They are asked at sign up; if this account has none, ask here.
   const [contact, setContact] = useState({ phoneCode: "+509", phone: "", street: "", city: "", state: "", postal: "" });
@@ -463,11 +485,10 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
         await refreshSession();
       }
       const res = await createCardFn({ data: { color, brand, amountUsd: parsed } });
-      onCreated(res.cardId);
       status.success("Card requested", "Your card is being created");
       void refresh();
       setColor("mint"); setAmount("10"); setStep(0);
-      onOpenChange(false);
+      setWait({ id: res.cardId, state: "creating" });
     } catch (e) {
       const msg = errorMessage(e);
       status.close();
@@ -488,8 +509,21 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
   const [title, desc] = titles[current]!;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (wait?.state === "creating") return; if (!v) setWait(null); onOpenChange(v); }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl">
+        {wait ? (
+          <div className="space-y-4 py-6 text-center" role="status">
+            <DialogTitle>{wait.state === "creating" ? "Creating your card..." : wait.state === "failed" ? "Card not created" : "Still creating your card"}</DialogTitle>
+            <DialogDescription>
+              {wait.state === "creating" ? "Please wait, this usually takes a few seconds. Do not close this window."
+                : wait.state === "failed" ? "We could not create your card. The money is back in your wallet."
+                : "This takes longer than usual. You will be notified as soon as your card is ready."}
+            </DialogDescription>
+            {wait.state === "creating" ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
+              <Button className="w-full rounded-xl" onClick={() => { setWait(null); onOpenChange(false); }}>Close</Button>
+            )}
+          </div>
+        ) : (<>
         <DialogHeader>
           <p className="text-xs font-medium text-muted-foreground">{`Step ${Math.min(step, steps.length - 1) + 1} of ${steps.length}`}</p>
           <DialogTitle>{title}</DialogTitle>
@@ -583,6 +617,7 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
             <Button className="h-11 rounded-xl shadow-neon sm:flex-1" disabled={!canNext || needsKyc} onClick={() => setStep((n) => n + 1)}>Next</Button>
           )}
         </DialogFooter>
+        </>)}
       </DialogContent>
     </Dialog>
   );
