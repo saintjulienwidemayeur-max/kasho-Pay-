@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useConfig, useRefreshAll, useTransactions, useWalletState, type CardColor, type KashoCard } from "@/lib/queries";
-import { feeFor } from "@/lib/fees";
+import { closeCardNotice, closedCardResult, feeFor } from "@/lib/fees";
 import { CARD_COLOR_PRESETS } from "@/lib/card-colors";
 import { refreshSession, useSession } from "@/lib/session";
 import { supabase } from "@/integrations/supabase/client";
@@ -590,6 +590,7 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
 
 function EditCardDialog({ open, onOpenChange, card }: { open: boolean; onOpenChange: (v: boolean) => void; card: KashoCard }) {
   const refresh = useRefreshAll();
+  const { data: config } = useConfig();
   const [label, setLabel] = useState(card.label);
   const [color, setColor] = useState<CardColor>(card.color);
   const [busy, setBusy] = useState(false);
@@ -614,7 +615,7 @@ function EditCardDialog({ open, onOpenChange, card }: { open: boolean; onOpenCha
     try {
       status.processing("Closing your card...");
       const r = await terminateCardFn({ data: { cardId: card.id } });
-      status.success("Card closed", r.refunded > 0 ? `${usd(r.refunded)} returned to your wallet.` : undefined);
+      status.success("Card closed", closedCardResult(r.refunded, r.fee));
       void refresh();
       setCloseOpen(false);
       onOpenChange(false);
@@ -656,7 +657,7 @@ function EditCardDialog({ open, onOpenChange, card }: { open: boolean; onOpenCha
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle>Close this card?</AlertDialogTitle>
-            <AlertDialogDescription>This cannot be undone. Any money left on the card ({usd(card.balance)}) goes back to your wallet.</AlertDialogDescription>
+            <AlertDialogDescription>{`This cannot be undone. ${closeCardNotice(card.balance, config?.cardClosureFeeUsd)}`}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep card</AlertDialogCancel>
@@ -670,6 +671,7 @@ function EditCardDialog({ open, onOpenChange, card }: { open: boolean; onOpenCha
 
 function TerminateCardDialog({ open, onOpenChange, card }: { open: boolean; onOpenChange: (v: boolean) => void; card: KashoCard }) {
   const refresh = useRefreshAll();
+  const { data: config } = useConfig();
   const [busy, setBusy] = useState(false);
 
   const removing = card.status === "terminated";
@@ -685,7 +687,7 @@ function TerminateCardDialog({ open, onOpenChange, card }: { open: boolean; onOp
       }
       status.processing("Terminating your card...");
       const r = await terminateCardFn({ data: { cardId: card.id } });
-      status.success("Card terminated", r.refunded > 0 ? `${usd(r.refunded)} returned to your wallet.` : undefined);
+      status.success("Card terminated", closedCardResult(r.refunded, r.fee));
       void refresh();
     } catch (e) {
       status.error(errorMessage(e));
@@ -701,7 +703,7 @@ function TerminateCardDialog({ open, onOpenChange, card }: { open: boolean; onOp
         <AlertDialogHeader>
           <AlertDialogTitle>{removing ? "Remove this card?" : "Terminate this card?"}</AlertDialogTitle>
           <AlertDialogDescription>
-            {removing ? `${card.label} will disappear from your cards. Its history stays in your transactions.` : `${card.label} will be closed permanently and can no longer be used. This cannot be undone. Any money left on the card (${usd(card.balance)}) goes back to your wallet.`}
+            {removing ? `${card.label} will disappear from your cards. Its history stays in your transactions.` : `${card.label} will be closed permanently and can no longer be used. This cannot be undone. ${closeCardNotice(card.balance, config?.cardClosureFeeUsd)}`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
