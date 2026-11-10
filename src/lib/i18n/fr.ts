@@ -7,6 +7,7 @@ export const FR: Record<string, string> = {
   "The link is invalid, was already used, or is older than one hour. Request a new one from the log in page.": "Le lien est invalide, a déjà été utilisé ou date de plus d'une heure. Demandez-en un nouveau depuis la page de connexion.",
   "Back to log in": "Retour à la connexion",
   "Show more": "Voir plus",
+  "Reply from Kasho Pay support": "Réponse du support Kasho Pay",
   // Countries (signup list)
   "Haiti": "Haïti", "United States": "États-Unis", "Dominican Republic": "République dominicaine", "Brazil": "Brésil", "Chile": "Chili",
   "Mexico": "Mexique", "United Kingdom": "Royaume-Uni", "Belgium": "Belgique", "Switzerland": "Suisse", "Spain": "Espagne",
