@@ -20,6 +20,8 @@ export type KashoCard = {
   status: CardStatus;
   color: CardColor;
   brand: string;
+  /** ISO date: a card cannot be closed on the (UTC) day it was created. */
+  createdAt: string;
 };
 
 const COLORS: CardColor[] = ["mint", "sunset", "ocean", "gold", "midnight", "forest", "chrome"];
@@ -30,6 +32,7 @@ function toCard(r: CardRow): KashoCard {
     label: r.label,
     last4: r.last4 ?? "----",
     expiry: r.expiry ?? "--/--",
+    createdAt: String(r.created_at ?? ""),
     balance: Number(r.balance),
     status: r.status === "disabled" ? "frozen" : r.status,
     color: COLORS.includes(r.color as CardColor) ? (r.color as CardColor) : "mint",

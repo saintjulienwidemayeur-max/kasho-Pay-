@@ -101,13 +101,14 @@ export const searchUsers = (a: Arg<{ q: string }>) => call<{ username: string; n
 export const sendMoney = (a: Arg<{ username: string; amountUsd: number; note?: string | undefined; idempotencyKey?: string | undefined }>) =>
   call<{ reference: string; recipient: string; fee: number }>("sendMoney", a.data);
 
-export type CardHolderInput = {
-  firstName: string; lastName: string; email: string; dob: string; country: string; idNumber: string;
-  phoneCode: string; phone: string; street: string; city: string; state: string; postalCode: string;
+/** The customer's card holder at the card issuer (new card program): a card can only be created once it is "ready". */
+export type CardProfile = {
+  state: "needs_kyc" | "needs_profile" | "none" | "pending" | "ready" | "failed";
+  reason: string | null; missing: string[]; holderId: string | null; canRetry: boolean;
 };
-export const createHolderFn = (a: Arg<CardHolderInput>) =>
-  call<{ holderId: string; linked: boolean; warning: string | null }>("createHolderFn", a.data);
-export const createCardFn = (a: Arg<{ label?: string | undefined; color: CardColor; brand: "VISA" | "MASTERCARD"; amountUsd: number; holderId?: string | undefined; holder?: { idNumber?: string; phoneCode?: string; phone?: string; street?: string; city?: string; state?: string; postalCode?: string } | undefined }>) =>
+export const cardProfileFn = () => call<CardProfile>("cardProfileFn", {});
+export const retryCardProfileFn = () => call<CardProfile>("retryCardProfileFn", {});
+export const createCardFn = (a: Arg<{ label?: string | undefined; color: CardColor; brand: "VISA" | "MASTERCARD"; amountUsd: number }>) =>
   call<{ cardId: string; transactionId: string }>("createCardFn", a.data);
 export const syncCardFn = (a: Arg<{ cardId: string }>) => call<{ status: string }>("syncCardFn", a.data);
 export const fundCardFn = (a: Arg<{ cardId: string; amountUsd: number }>) => call<{ ok: boolean }>("fundCardFn", a.data);

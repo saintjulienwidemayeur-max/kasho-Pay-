@@ -27,6 +27,7 @@ import { cleanAmount, errorMessage, usd } from "@/lib/format";
 import type { Transaction } from "@/components/kasho/data";
 import { TransactionList } from "@/components/kasho/transactions-list";
 import { CardBrandLogo } from "@/components/kasho/card-brand-logos";
+import { CardProfilePanel, WalletPayBadge, WalletPayGuide, useCardProfile } from "@/components/kasho/card-profile";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/card")({
@@ -44,6 +45,10 @@ export const Route = createFileRoute("/_authenticated/card")({
 });
 
 const QUICK_AMOUNTS = [10, 20, 50, 100];
+/** The card issuer keeps at least $1 on a card after a withdrawal (new card program). */
+const CARD_MIN_LEFT = 1;
+/** A card cannot be closed on the (UTC) day it was created. */
+const createdTodayUtc = (iso: string) => { const d = new Date(iso); return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10); };
 const HIDDEN_TYPES = new Set(["FUNDING", "WITHDRAWAL", "TERMINATION", "SETTLEMENT"]);
 const TYPE_LABEL: Record<string, string> = {
   AUTHORIZATION: "Purchase", DECLINE: "Declined", REFUND: "Refund", REVERSAL: "Reversal", "CROSS-BORDER": "Cross-border",
@@ -140,6 +145,7 @@ function CardPage() {
       <div className="mx-auto max-w-md py-16 text-center">
         <h1 className="text-3xl font-semibold">Your cards</h1>
         <p className="mt-3 text-sm text-muted-foreground">You don't have a card yet. Create a virtual card and pay online anywhere.</p>
+        <WalletPayBadge className="mt-3 justify-center" />
         <div className="mt-8 flex flex-col items-center gap-3">
           <Button className="h-12 rounded-xl px-8 shadow-neon" onClick={() => setNewCardOpen(true)}><Plus /> Create a card</Button>
         </div>
@@ -301,6 +307,8 @@ function CardPage() {
         <p className="text-center text-xs text-muted-foreground">Spent on this card this month: {usd(activity.data.monthSpend)}</p>
       )}
 
+      {(selected.status === "active" || selected.status === "frozen") && <WalletPayGuide />}
+
       <MoveMoneyDialog mode="in" open={topUpOpen} onOpenChange={setTopUpOpen} card={selected} walletBalance={walletBalance} />
       <MoveMoneyDialog mode="out" open={withdrawOpen} onOpenChange={setWithdrawOpen} card={selected} walletBalance={walletBalance} />
       <NewCardDialog open={newCardOpen} onOpenChange={setNewCardOpen} walletBalance={walletBalance} onCreated={setSelectedId} />
@@ -325,7 +333,8 @@ function MoveMoneyDialog({ mode, open, onOpenChange, card, walletBalance }: { mo
   const feeOrNull = feeFor(config?.fees, mode === "in" ? "card_fund" : "card_withdraw", parsed);
   const fee = feeOrNull ?? 0;
   // Adding: the wallet pays amount + fee. Moving back: the fee is taken from the amount, so it must be larger than the fee.
-  const max = mode === "in" ? walletBalance - fee : card.balance;
+  // The card issuer keeps at least $1 on a card after a withdrawal (closing the card gives everything back).
+  const max = mode === "in" ? walletBalance - fee : Math.max(0, Math.round((card.balance - CARD_MIN_LEFT) * 100) / 100);
   const valid = parsed > 0 && feeOrNull !== null && parsed <= max && (mode === "in" || parsed > fee);
 
   const handleConfirm = async () => {
@@ -361,7 +370,8 @@ function MoveMoneyDialog({ mode, open, onOpenChange, card, walletBalance }: { mo
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
               <Input id="amount" inputMode="decimal" autoComplete="off" placeholder="0.00" className="h-11 rounded-xl pl-7" value={amount} onChange={(e) => setAmount(cleanAmount(e.target.value))} />
             </div>
-            <p className="text-xs text-muted-foreground">{mode === "in" ? `From wallet · ${usd(walletBalance)} available` : `On card · ${usd(card.balance)} available`}</p>
+            <p className="text-xs text-muted-foreground">{mode === "in" ? `From wallet · ${usd(walletBalance)} available` : `On card · ${usd(card.balance)} · you can move up to ${usd(max)}`}</p>
+            {mode === "out" && <p className="text-xs text-muted-foreground">{`At least ${usd(CARD_MIN_LEFT)} stays on the card. Close the card to get everything back.`}</p>}
           </div>
           <div className="flex flex-wrap gap-2">
             {QUICK_AMOUNTS.map((v) => (
@@ -377,7 +387,7 @@ function MoveMoneyDialog({ mode, open, onOpenChange, card, walletBalance }: { mo
           )}
           {amount && !valid && (
             <p className="text-xs text-destructive">
-              {parsed > max ? (mode === "in" && parsed <= walletBalance ? "That is more than your wallet balance (fee included)." : "That is more than the available balance.")
+              {parsed > max ? (mode === "in" && parsed <= walletBalance ? "That is more than your wallet balance (fee included)." : mode === "out" && parsed <= card.balance ? `At least ${usd(CARD_MIN_LEFT)} must stay on the card.` : "That is more than the available balance.")
                 : mode === "out" && parsed > 0 && parsed <= fee ? `The amount must be more than the ${usd(fee)} fee.` : "Enter a valid amount."}
             </p>
           )}
@@ -440,50 +450,31 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wait?.id, wait?.state]);
 
-  // The card service needs a phone number and a full address. They are asked at sign up; if this account has none, ask here.
-  const [contact, setContact] = useState({ phoneCode: "+509", phone: "", street: "", city: "", state: "", postal: "" });
-  const [askContact, setAskContact] = useState(false);
-  const setC = (k: keyof typeof contact) => (e: React.ChangeEvent<HTMLInputElement>) => setContact((v) => ({ ...v, [k]: e.target.value }));
-  const contactOk = contact.phone.replace(/\D/g, "").length >= 7 && [contact.street, contact.city, contact.state, contact.postal].every((v) => v.trim().length > 1);
+  // The card issuer must have verified the card holder first (new card program): until then the dialog shows where it is.
+  const profile = useCardProfile(open);
+  const holderReady = profile.data?.state === "ready";
 
   useEffect(() => {
     if (!open) return;
     setStep(0); setError(null);
-    const p = session?.profile;
-    setContact({
-      phoneCode: p?.phone_code || "+509", phone: p?.phone_number ?? "", street: p?.address_street ?? "", city: p?.address_city ?? "",
-      state: p?.address_state ?? "", postal: p?.address_postal_code ?? "",
-    });
-    setAskContact(!(p?.phone_number && p?.address_street && p?.address_city && p?.address_state && p?.address_postal_code));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const parsed = Number(amount);
   const feeOrNull = feeFor(config?.fees, "card_creation", parsed);
   const fee = feeOrNull ?? 0;
-  const min = config?.minCardPrefundUsd ?? 2;
+  const min = Math.max(config?.minCardPrefundUsd ?? 2, 2);
   const needsKyc = (config?.requireKycForCards ?? false) && session?.profile?.kyc_status !== "verified";
-  const steps = [...(askContact ? ["details"] : []), "network", "prefund", "design"] as const;
+  const steps = ["network", "prefund", "design"] as const;
   const current = steps[Math.min(step, steps.length - 1)]!;
   const amountOk = parsed >= min && feeOrNull !== null && parsed + fee <= walletBalance;
-  const canNext = current === "details" ? contactOk : current === "prefund" ? amountOk : true;
+  const canNext = current === "prefund" ? amountOk : true;
   const last = step >= steps.length - 1;
 
   const handleConfirm = async () => {
-    if (!amountOk || needsKyc || (askContact && !contactOk)) return;
+    if (!amountOk || needsKyc || !holderReady) return;
     setBusy(true);
     setError(null);
     try {
-      if (askContact) {
-        if (!session) throw new Error("Please sign in again.");
-        const { error: upErr } = await supabase.from("profiles").update({
-          phone_code: contact.phoneCode.trim() || "+509", phone_number: contact.phone.replace(/\D/g, ""),
-          address_street: contact.street.trim(), address_city: contact.city.trim(),
-          address_state: contact.state.trim(), address_postal_code: contact.postal.trim(),
-        }).eq("id", session.id);
-        if (upErr) throw upErr;
-        await refreshSession();
-      }
       const res = await createCardFn({ data: { color, brand, amountUsd: parsed } });
       status.success("Card requested", "Your card is being created");
       void refresh();
@@ -495,15 +486,15 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
       setError(msg); // shown inside this dialog; the dialog stays open so nothing hides it
       toast.error(msg);
       void refresh();
+      void profile.refetch(); // the issuer may have said the holder is not verified after all
     } finally {
       setBusy(false);
     }
   };
 
   const titles: Record<string, [string, string]> = {
-    details: ["Your contact details", "The card service needs your phone number and address to issue your card."],
     network: ["Choose a network", "Pick the card network you want to use."],
-    prefund: ["Prefund your card", "The prefund is the first amount loaded onto your card. It comes from your wallet and becomes the starting balance of the card. You can add more later."],
+    prefund: ["Prefund your card", "The prefund is the first amount loaded onto your card. It comes from your wallet. The card issuer takes its fee from it, so the starting balance of the card is a little lower. You can add more later."],
     design: ["Choose a design", "Pick the look of your card."],
   };
   const [title, desc] = titles[current]!;
@@ -522,6 +513,18 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
             {wait.state === "creating" ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : (
               <Button className="w-full rounded-xl" onClick={() => { setWait(null); onOpenChange(false); }}>Close</Button>
             )}
+          </div>
+        ) : (<>
+        {!needsKyc && !holderReady ? (
+          <div className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Create a card</DialogTitle>
+              <DialogDescription>Your card is issued in your name by our card partner. It works with Apple Pay and Google Pay.</DialogDescription>
+            </DialogHeader>
+            {profile.data ? <CardProfilePanel profile={profile.data} onClose={() => onOpenChange(false)} />
+              : profile.isError ? <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{errorMessage(profile.error)}</div>
+              : <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />}
+            <Button variant="outline" className="h-11 w-full rounded-xl" onClick={() => onOpenChange(false)}>Close</Button>
           </div>
         ) : (<>
         <DialogHeader>
@@ -545,24 +548,6 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
         )}
 
         <div className="space-y-4">
-          {current === "details" && (
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="nc-phone">Phone number</Label>
-                <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-2">
-                  <Input aria-label="Country code" className="h-11 rounded-xl text-center" value={contact.phoneCode} onChange={(e) => setContact((v) => ({ ...v, phoneCode: e.target.value.replace(/[^\d+]/g, "") }))} />
-                  <Input id="nc-phone" type="tel" className="h-11 rounded-xl" value={contact.phone} onChange={setC("phone")} />
-                </div>
-              </div>
-              <div className="space-y-2"><Label htmlFor="nc-street">Street address</Label><Input id="nc-street" className="h-11 rounded-xl" value={contact.street} onChange={setC("street")} /></div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-2"><Label htmlFor="nc-city">City</Label><Input id="nc-city" className="h-11 rounded-xl" value={contact.city} onChange={setC("city")} /></div>
-                <div className="space-y-2"><Label htmlFor="nc-state">State</Label><Input id="nc-state" className="h-11 rounded-xl" value={contact.state} onChange={setC("state")} /></div>
-                <div className="space-y-2"><Label htmlFor="nc-zip">Postal code</Label><Input id="nc-zip" className="h-11 rounded-xl" value={contact.postal} onChange={setC("postal")} /></div>
-              </div>
-            </div>
-          )}
-
           {current === "network" && (
             <div className="grid grid-cols-2 gap-3">
               {(["VISA", "MASTERCARD"] as const).map((b) => (
@@ -617,6 +602,8 @@ function NewCardDialog({ open, onOpenChange, walletBalance, onCreated }: { open:
             <Button className="h-11 rounded-xl shadow-neon sm:flex-1" disabled={!canNext || needsKyc} onClick={() => setStep((n) => n + 1)}>Next</Button>
           )}
         </DialogFooter>
+        <WalletPayBadge />
+        </>)}
         </>)}
       </DialogContent>
     </Dialog>
@@ -710,6 +697,7 @@ function TerminateCardDialog({ open, onOpenChange, card }: { open: boolean; onOp
   const [busy, setBusy] = useState(false);
 
   const removing = card.status === "terminated";
+  const tooEarly = !removing && card.status !== "pending" && createdTodayUtc(card.createdAt);
   const handleTerminate = async () => {
     setBusy(true);
     onOpenChange(false);
@@ -738,12 +726,14 @@ function TerminateCardDialog({ open, onOpenChange, card }: { open: boolean; onOp
         <AlertDialogHeader>
           <AlertDialogTitle>{removing ? "Remove this card?" : "Terminate this card?"}</AlertDialogTitle>
           <AlertDialogDescription>
-            {removing ? `${card.label} will disappear from your cards. Its history stays in your transactions.` : `${card.label} will be closed permanently and can no longer be used. This cannot be undone. ${closeCardNotice(card.balance, config?.cardClosureFeeUsd)}`}
+            {removing ? `${card.label} will disappear from your cards. Its history stays in your transactions.`
+              : tooEarly ? "A card cannot be closed on the day it was created. Freeze it now and close it tomorrow."
+              : `${card.label} will be closed permanently and can no longer be used. This cannot be undone. ${closeCardNotice(card.balance, config?.cardClosureFeeUsd)}`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{removing ? "Cancel" : "Keep card"}</AlertDialogCancel>
-          <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleTerminate} disabled={busy}>{removing ? "Remove card" : "Terminate card"}</AlertDialogAction>
+          {!tooEarly && <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleTerminate} disabled={busy}>{removing ? "Remove card" : "Terminate card"}</AlertDialogAction>}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
