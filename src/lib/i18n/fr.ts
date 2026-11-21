@@ -414,6 +414,8 @@ export const MONTHS_FR: Record<string, string> = {
 
 // Dynamic strings: [regex, replacement]. $1... are the captured parts (amounts, names stay as they are).
 export const PATTERNS: [RegExp, string][] = [
+  [/^The card issuer did not accept your ID document: (.+)\. Try again, or contact support\.$/, "L'émetteur des cartes n'a pas accepté votre pièce d'identité : $1. Réessayez ou contactez le support."],
+  [/^The card issuer did not accept your ID document\. Try again, or contact support\.$/, "L'émetteur des cartes n'a pas accepté votre pièce d'identité. Réessayez ou contactez le support."],
   [/^On card · (.+) · you can move up to (.+)$/, "Sur la carte · $1 · vous pouvez déplacer jusqu'à $2"],
   [/^At least (\$[\d.,]+) stays on the card\. Close the card to get everything back\.$/, "Au moins $1 reste sur la carte. Fermez la carte pour tout récupérer."],
   [/^At least (\$[\d.,]+) must stay on the card\.$/, "Au moins $1 doit rester sur la carte."],
